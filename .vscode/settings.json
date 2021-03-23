@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "typeinfo": "cpp",
+        "error_types.h": "c",
+        "irrecv.h": "c",
+        "irsend.h": "c",
+        "config.h": "c",
+        "wifi_wrapper.h": "c",
+        "espasync_wifimanager.h": "c",
+        "esp_doubleresetdetector.h": "c",
+        "adafruit_mqtt.h": "c",
+        "arduinolog.h": "c"
+    }
+}
