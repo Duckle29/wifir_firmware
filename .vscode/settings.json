@@ -9,6 +9,7 @@
         "espasync_wifimanager.h": "c",
         "esp_doubleresetdetector.h": "c",
         "adafruit_mqtt.h": "c",
-        "arduinolog.h": "c"
+        "arduinolog.h": "c",
+        "ssl_wrapper.h": "c"
     }
 }
