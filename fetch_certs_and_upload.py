@@ -5,7 +5,7 @@ from pathlib import Path
 from time import time
 from sys import exit
 
-certbundle = Path(env["PROJECT_DIR"]) / "data" / certs.ar
+certbundle = Path(env["PROJECT_DIR"]) / "data" / "certs.ar"
 
 if certbundle.is_file():
     # If certificate bundle is more than 30 days, fetch and upload a new image
