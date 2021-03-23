@@ -31,4 +31,4 @@ const char *mqtt_server = "io.adafruit.com";
 const uint16_t mqtt_port = 8883;
 
 // Sensors
-const float temp_offset = -8;
+const float temp_offset = -9;

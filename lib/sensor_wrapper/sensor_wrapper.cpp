@@ -180,11 +180,14 @@ void Sensors::m_poll_temp_humi()
     rh = m_get_compensated_humidity(m_humidity.relative_humidity, m_temperature.temperature, m_t_offset);
 }
 
+// Thanks to help from aheid in home assistant DIY channel for pointing me in the right direction :)
+// Based on the equations at http://hyperphysics.phy-astr.gsu.edu/hbase/Kinetic/relhum.html
 float Sensors::m_get_compensated_humidity(double humi_meas, double temp_meas, double temp_offset)
 {
     return humi_meas * (m_get_vapor_density_saturation(temp_meas) / m_get_vapor_density_saturation(temp_meas + temp_offset));
 }
 
+// Based on the reduced fit http://hyperphysics.phy-astr.gsu.edu/hbase/Kinetic/relhum.html#C3
 double Sensors::m_get_vapor_density_saturation(double temp)
 {
     double VD = 5.018;
