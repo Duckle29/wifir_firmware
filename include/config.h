@@ -12,6 +12,7 @@ const uint32_t call_interval = 10000;
 
 // HostName
 const char *base_name = "WiFIR";
+const char *fw_version = "v0.1.6";
 
 // Double Reset Detection
 const int drd_timeout = 10;
@@ -21,14 +22,13 @@ const int drd_address = 0;
 const char *mqtts_server = "io.adafruit.com";
 const uint16_t mqtts_port = 8883;
 
+// OTA
+const uint32_t ota_check_interval = 15 * 60 * 1000; // Check for updates every 15 minutes
+
 const uint8_t ir_pins[] = {
     D3, // IR input
     D6  // IR output
 };
 
-// MQTT
-const char *mqtt_server = "io.adafruit.com";
-const uint16_t mqtt_port = 8883;
-
 // Sensors
-const float temp_offset = -9;
+const float temp_offset = -9.5;

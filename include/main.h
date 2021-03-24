@@ -32,6 +32,10 @@ const char *get_feed_url(String feed_name);
 Adafruit_MQTT_Client *mqtt;
 Adafruit_MQTT_Publish *temp_feed, *humi_feed, *eco2_feed, *tvoc_feed, *state_tx_feed, *state_rx_feed;
 
+// --- OTA ---
+#include "ota_wrapper.h"
+OtaWrapper *ota;
+
 // --- Sensors ---
 #include "sensor_wrapper.h"
 Sensors Sens;

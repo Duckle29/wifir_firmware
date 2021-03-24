@@ -7,13 +7,28 @@ void setup()
     // Debug
     Serial.begin(115200);
     Log.begin(LOG_LEVEL, &Serial);
+    Log.notice("\nBOOT\n");
+    Log.notice("%s version %s\n", base_name, fw_version);
 
     // WiFi
     wm.begin(_hostname.c_str());
 
     // SSL
     ssl_wrap.begin(USER_TZ);
+
+    uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
+    uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
+
+    if (mqtts_mfln == ota_mfln && mqtts_mfln != 0)
+    {
+        ssl_wrap.set_mfln(ota_mfln);
+    }
+
+    Log.trace("Servers support %d (mqtt) : %d (ota) mfln", mqtts_mfln, ota_mfln);
     client = ssl_wrap.get_client();
+
+    // OTA
+    ota = new OtaWrapper(client, ota_server, ota_user, ota_passwd, base_name, fw_version, ota_check_interval);
 
     // MQTTS
     mqtt = new Adafruit_MQTT_Client(client, mqtts_server, mqtts_port, mqtts_username, mqtts_key);
@@ -61,11 +76,12 @@ void loop()
     if (rate_limit() == I_SUCCESS)
     {
         MQTT_connect();
-        Log.notice("MQTT publish\n");
+        Log.trace("MQTT publish\n");
         temp_feed->publish(Sens.t);
         humi_feed->publish(Sens.rh);
     }
 
+    ota->loop();
     rate_limit(true); // Mark loop for rate limiter
 }
 

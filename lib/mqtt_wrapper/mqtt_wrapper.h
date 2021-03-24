@@ -8,7 +8,6 @@
 
 // SSL
 #include <ESP8266WiFi.h>
-#include <CertStoreBearSSL.h>
 
 // MQTT
 #include "Adafruit_MQTT.h"

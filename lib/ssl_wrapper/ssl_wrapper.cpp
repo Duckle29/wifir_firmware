@@ -30,6 +30,28 @@ int SSLWrapper::begin(const char *tz)
     return numCerts;
 }
 
+uint16_t SSLWrapper::test_mfln(const char *server, uint16_t port)
+{
+    for (uint16_t fragment_length = 512; fragment_length <= 4096; fragment_length *= 2)
+    {
+        if (m_client->probeMaxFragmentLength(server, port, fragment_length))
+        {
+            return fragment_length;
+        }
+    }
+    return 0;
+}
+
+void SSLWrapper::set_mfln(uint16_t fragment_length)
+{
+    m_client->setBufferSizes(fragment_length, fragment_length);
+}
+
+void SSLWrapper::clear_mfln()
+{
+    m_client->setBufferSizes(16384, 512); // Minimum safe
+}
+
 void SSLWrapper::m_set_clock(const char *tz)
 {
     configTime(tz, "pool.ntp.org");

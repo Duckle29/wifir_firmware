@@ -10,6 +10,9 @@
         "esp_doubleresetdetector.h": "c",
         "adafruit_mqtt.h": "c",
         "arduinolog.h": "c",
-        "ssl_wrapper.h": "c"
+        "ssl_wrapper.h": "c",
+        "*.tcc": "cpp",
+        "arduino.h": "c",
+        "esp8266wifi.h": "c"
     }
 }
