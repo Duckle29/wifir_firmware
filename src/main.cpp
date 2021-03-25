@@ -33,10 +33,22 @@ void setup()
     // MQTTS
     mqtt = new Adafruit_MQTT_Client(client, mqtts_server, mqtts_port, mqtts_username, mqtts_key);
 
-    const char *feed_url_c = get_feed_url("temp");
-    temp_feed = new Adafruit_MQTT_Publish(mqtt, feed_url_c, MQTT_QOS_0);
-    feed_url_c = get_feed_url("humi");
-    humi_feed = new Adafruit_MQTT_Publish(mqtt, feed_url_c, MQTT_QOS_0);
+    for (int i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
+    {
+        const char *feed_url = get_feed_url(feeds[i].name);
+        if (feeds[i].type == PUBLISH)
+        {
+            feeds[i].pub_obj = new Adafruit_MQTT_Publish(mqtt, feed_url, feeds[i].qos);
+        }
+        else
+        {
+            feeds[i].sub_obj = new Adafruit_MQTT_Subscribe(mqtt, feed_url, feeds[i].qos);
+            if (feeds[i].cb != nullptr)
+            {
+                feeds[i].sub_obj->setCallback(feeds[i].cb);
+            }
+        }
+    }
 
     Sens.set_offset(temp_offset);
     Sens.begin();
@@ -45,6 +57,7 @@ void setup()
 void loop()
 {
     wm.loop();
+    ota->loop(); // Check for OTA first. Gives a chance to recover from crashing firmware on boot.
 
     error_t rc = Sens.loop();
     if (rc != I_SUCCESS && rc != W_RATE_LIMIT)
@@ -77,12 +90,49 @@ void loop()
     {
         MQTT_connect();
         Log.trace("MQTT publish\n");
-        temp_feed->publish(Sens.t);
-        humi_feed->publish(Sens.rh);
-    }
 
-    ota->loop();
+        Feed *f = get_feed_by_name("temp");
+        if (f != nullptr)
+        {
+            f->pub_obj->publish(Sens.t);
+        }
+        f = get_feed_by_name("humi");
+        if (f != nullptr)
+        {
+            f->pub_obj->publish(Sens.rh);
+        }
+        f = get_feed_by_name("eco2");
+        if (f != nullptr)
+        {
+            f->pub_obj->publish(Sens.eco2);
+        }
+        f = get_feed_by_name("tvoc");
+        if (f != nullptr)
+        {
+            f->pub_obj->publish(Sens.tvoc);
+        }
+    }
     rate_limit(true); // Mark loop for rate limiter
+}
+
+void state_rx_cb(char *data, uint16_t len)
+{
+}
+
+void config_rx_cb(char *data, uint16_t len)
+{
+}
+
+Feed *get_feed_by_name(String name)
+{
+    for (int i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
+    {
+        if (feeds[i].name == name)
+        {
+            return &feeds[i];
+        }
+    }
+    return nullptr;
 }
 
 const char *get_feed_url(String feed_name)

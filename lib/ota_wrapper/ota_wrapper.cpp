@@ -11,6 +11,7 @@ OtaWrapper::OtaWrapper(BearSSL::WiFiClientSecure *client, const char *ota_server
     m_base_name = base_name;
     m_version = version;
     m_check_interval = check_interval;
+    m_last_check -= check_interval;
 }
 
 void OtaWrapper::loop()
@@ -32,6 +33,7 @@ void OtaWrapper::loop()
         url += device_name;
 
         ESPhttpUpdate.setAuthorization(m_ota_user, m_ota_pass);
+        ESPhttpUpdate.setLedPin(LED_BUILTIN, LOW);
         HTTPUpdateResult ret = ESPhttpUpdate.update(*m_client, url);
 
         switch (ret)
