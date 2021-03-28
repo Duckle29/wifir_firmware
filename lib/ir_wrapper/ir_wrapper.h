@@ -5,7 +5,6 @@
 #include "error_types.h"
 #include "config.h"
 
-#include <IRsend.h>
 #include <IRrecv.h>
 #include <IRac.h>
 #include <IRutils.h>
@@ -17,12 +16,51 @@ class Ir
 public:
     Ir(uint8_t RX_PIN, uint8_t TX_PIN);
 
-    uint8_t state[kStateSizeMax];
+    decode_results rx_results;
     bool state_changed = false;
 
     error_t loop();
-    void set_protocol(decode_type_t);
-    bool send_state(uint8_t *, uint16_t);
+
+    /**
+     * @param[in] state A String with the desired changes to the state.
+     * @brief Fill the internal state by parsing the given string
+     * @details
+     *  Fills the internal stdAc::state_t variable by parsing the supplied string.
+     *  The format of the string should be "X=V:" where X is the particular setting,
+     *  and V is the value it should be set to.
+     *  Supported settings are:
+     *      - P: power:
+     *          - On
+     *          - Off
+     *      - T: temperature: Value should be a float, optionally followed by a C or F for scale
+     *      - M: mode: Changing to/from off won't power cycle. Use P for that.
+     *          - Off
+     *          - Auto
+     *          - Cool
+     *          - Heat
+     *          - Dry
+     *          - Fan
+     *      - H: Swing Horizontal:
+     *          - Off
+     *          - Auto
+     *          - Highest
+     *          - High
+     *          - Middle
+     *          - Low
+     *          - Lowest
+     *      - S: Fan speed
+     *          - Auto
+     *          - Min
+     *          - Low
+     *          - Medium
+     *          - High
+     *          - Max
+     */
+    void set_state(String state);
+    void set_state(char *state, uint_fast16_t len);
+
+    void send_state();
+
     String results_as_string(void);
     String results_as_decoded_string(void);
 
@@ -35,5 +73,5 @@ private:
     decode_type_t m_protocol;
 
     IRrecv *m_ir_rx;
-    IRsend *m_ir_tx;
+    IRac *m_ir_ac;
 };
