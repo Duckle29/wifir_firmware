@@ -13,11 +13,12 @@ void Sensors::begin()
     if (!m_aht->begin())
     {
         Serial.println("Failed to find AHT10/AHT20 chip");
-        while (true)
+        while (!m_aht->begin())
         {
-            delay(10);
+            delay(500);
         }
     }
+    Serial.println("Found AHT10/AHT20 chip");
 
     m_sens_temperature = m_aht->getTemperatureSensor();
     m_sens_humidity = m_aht->getHumiditySensor();
@@ -29,11 +30,12 @@ void Sensors::begin()
     if (!m_sgp->begin())
     {
         Serial.println("SGP30 not found :(");
-        while (true)
+        while (!m_sgp->begin())
         {
-            delay(10);
+            delay(500);
         }
     }
+    Serial.println("Found SGP30");
 
     m_sgp_start = time(nullptr);
 
@@ -42,13 +44,13 @@ void Sensors::begin()
     switch (rc)
     {
     case I_SUCCESS:
-        m_old_baseline = false;
+        old_baseline = false;
         m_sgp->setIAQBaseline(eco2_base, tvoc_base);
         break;
 
     case W_FILE_NOT_FOUND:
     case W_OLD_BASELINE:
-        m_old_baseline = true;
+        old_baseline = true;
         m_sgp->setIAQBaseline(eco2_base, tvoc_base);
         break;
 
@@ -137,7 +139,7 @@ error_t Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
     m_last_poll = millis();
 
     error_t rc = I_SUCCESS;
-    if (!m_old_baseline)
+    if (!old_baseline)
     {
         // If the baseline isn't old, save it every hour
         if ((time(nullptr) - m_sgp_start) % (60 * 60))
@@ -159,7 +161,7 @@ error_t Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
         if (baseline_age > 12 * 60 * 60)
         {
             // If the sensor has had 12h to get a baseline, it's no-longer old
-            m_old_baseline = false;
+            old_baseline = false;
         }
     }
 

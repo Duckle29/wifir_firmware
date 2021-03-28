@@ -21,6 +21,7 @@ public:
     float t, rh;
     uint16_t eco2, tvoc;
     time_t baseline_age;
+    bool old_baseline = true;
 
 private:
     uint32_t m_polling_interval;
@@ -36,7 +37,6 @@ private:
     Adafruit_SGP30 *m_sgp = nullptr;
 
     time_t m_sgp_start;
-    boolean m_old_baseline = true;
 
     // Prototypes
     void m_poll_temp_humi();
