@@ -1,4 +1,4 @@
-#include "main.h"
+#include "../include/main.h"
 
 void setup()
 {
@@ -15,16 +15,16 @@ void setup()
 
     // SSL
     ssl_wrap.begin(USER_TZ);
+    // Log.notice("Testing MFLN server capabilites");
+    // uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
+    // uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
 
-    uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
-    uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
+    // if (mqtts_mfln == ota_mfln && mqtts_mfln != 0)
+    // {
+    //     ssl_wrap.set_mfln(ota_mfln);
+    // }
 
-    if (mqtts_mfln == ota_mfln && mqtts_mfln != 0)
-    {
-        ssl_wrap.set_mfln(ota_mfln);
-    }
-
-    Log.trace("Servers support %d (mqtt) : %d (ota) mfln", mqtts_mfln, ota_mfln);
+    //Log.notice("Servers support %d (mqtt) : %d (ota) mfln", mqtts_mfln, ota_mfln);
     client = ssl_wrap.get_client();
 
     // OTA
@@ -33,10 +33,10 @@ void setup()
     // MQTTS
     mqtt = new Adafruit_MQTT_Client(client, mqtts_server, mqtts_port, mqtts_username, mqtts_key);
 
-    for (int i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
+    for (uint_fast8_t i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
     {
         const char *feed_url = get_feed_url(feeds[i].name);
-        if (feeds[i].type == PUBLISH)
+        if (feeds[i].f_type == PUBLISH)
         {
             feeds[i].pub_obj = new Adafruit_MQTT_Publish(mqtt, feed_url, feeds[i].qos);
         }
@@ -45,10 +45,14 @@ void setup()
             feeds[i].sub_obj = new Adafruit_MQTT_Subscribe(mqtt, feed_url, feeds[i].qos);
             if (feeds[i].cb != nullptr)
             {
+                Serial.println(feed_url);
                 feeds[i].sub_obj->setCallback(feeds[i].cb);
+                mqtt->subscribe(feeds[i].sub_obj);
             }
         }
     }
+
+    MQTT_connect();
 
     Sens.set_offset(temp_offset);
     Sens.begin();
@@ -56,9 +60,11 @@ void setup()
 
 void loop()
 {
+    Log.verbose(F("WM\n"));
     wm.loop();
     ota->loop(); // Check for OTA first. Gives a chance to recover from crashing firmware on boot.
 
+    Log.verbose(F("Sens\n"));
     error_t rc = Sens.loop();
     if (rc != I_SUCCESS && rc != W_RATE_LIMIT)
     {
@@ -66,73 +72,91 @@ void loop()
     }
 
     // Print sensor readings
-    if (rate_limit() == I_SUCCESS)
+    if (limiter_debug.ok())
     {
-        Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb | baseline age: %F h |\n",
-                   Sens.t,
-                   Sens.rh,
-                   Sens.eco2,
-                   Sens.tvoc,
-                   Sens.baseline_age / (float)(60 * 60));
+        char base_buff[35];
+        snprintf(base_buff, sizeof(base_buff), " baseline age: %.2f h |", (float)Sens.baseline_age / (float)(60 * 60));
+        // Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb |%s\n",
+        //            Sens.t,
+        //            Sens.rh,
+        //            Sens.eco2,
+        //            Sens.tvoc,
+        //            base_buff);
     }
 
+    Log.verbose(F("IR\n"));
     rc = ir.loop();
-    // Print IR readings
-    if (ir.state_changed && rate_limit() == I_SUCCESS)
+
+    if (new_state)
     {
-        ir.state_changed = false;
-        Log.notice("New IR state(local): %s\n%s\n\n",
-                   ir.results_as_string().c_str(),
-                   ir.results_as_decoded_string().c_str());
+        new_state = false;
+        ir.set_state(new_state_s);
     }
 
-    if (rate_limit() == I_SUCCESS)
+    //ir.send_state();
+    // Print IR readings
+    // if (limiter_debug.ok() && ir.state_changed)
+    // {
+    //     //ir.state_changed = false;
+    //     Log.notice("New IR state(local): %s\n%s\n\n",
+    //                ir.results_as_string().c_str(),
+    //                ir.results_as_decoded_string().c_str());
+    // }
+
+    Log.verbose(F("MQTT:PUB\n"));
+    if (limiter_mqtt.ok(true))
     {
+
         MQTT_connect();
         Log.trace("MQTT publish\n");
 
-        Feed *f = get_feed_by_name("temp");
-        if (f != nullptr)
+        for (uint_fast8_t i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
         {
-            f->pub_obj->publish(Sens.t);
-        }
-        f = get_feed_by_name("humi");
-        if (f != nullptr)
-        {
-            f->pub_obj->publish(Sens.rh);
-        }
-        f = get_feed_by_name("eco2");
-        if (f != nullptr)
-        {
-            f->pub_obj->publish(Sens.eco2);
-        }
-        f = get_feed_by_name("tvoc");
-        if (f != nullptr)
-        {
-            f->pub_obj->publish(Sens.tvoc);
+            delay(0);
+            if (feeds[i].f_type == PUBLISH)
+            {
+                switch (feeds[i].d_type)
+                {
+                case FLOAT:
+                    feeds[i].pub_obj->publish(*(float *)feeds[i].data);
+                    break;
+
+                case RXRES:
+                    if (ir.state_changed)
+                    {
+                        ir.state_changed = false;
+                        String desc = ir.results_as_decoded_string();
+                        Log.trace("%s\n", desc.c_str());
+                        bool res = feeds[i].pub_obj->publish((uint8_t *)desc.c_str(), desc.length());
+                        Log.trace("res %d", res);
+                    }
+                    break;
+
+                case UINT16:
+                    feeds[i].pub_obj->publish(*(uint16_t *)feeds[i].data);
+                    break;
+                default:
+                    break;
+                }
+            }
         }
     }
-    rate_limit(true); // Mark loop for rate limiter
+    limiter_debug.ok(true);
+
+    Log.verbose(F("MQTT:SUB\n"));
+    mqtt->processPackets(100);
 }
 
 void state_rx_cb(char *data, uint16_t len)
 {
+    new_state_s = String(data);
+    new_state = true;
+    //Log.trace("%s\n", data);
+    //ir.set_state(data, len);
 }
 
 void config_rx_cb(char *data, uint16_t len)
 {
-}
-
-Feed *get_feed_by_name(String name)
-{
-    for (int i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
-    {
-        if (feeds[i].name == name)
-        {
-            return &feeds[i];
-        }
-    }
-    return nullptr;
 }
 
 const char *get_feed_url(String feed_name)
@@ -144,24 +168,6 @@ const char *get_feed_url(String feed_name)
     char *cstr = (char *)malloc(feed_url.length() + 1);
     strcpy(cstr, feed_url.c_str());
     return cstr;
-}
-
-error_t rate_limit(bool loop_marker)
-{
-    if (loop_marker && was_called)
-    {
-        //Serial.println("2");
-        last_call = millis();
-        was_called = false;
-        return I_SUCCESS;
-    }
-
-    if (millis() - last_call < call_interval)
-    {
-        return W_RATE_LIMIT;
-    }
-    was_called = true;
-    return I_SUCCESS;
 }
 
 String get_hostname(const char *base_name)

@@ -6,38 +6,26 @@
 #include "config.h"
 #include "error_types.h"
 
-#define USE_LittleFS
-#ifdef USE_LittleFS
-#include <FS.h>
-#define SPIFFS LittleFS
 #include <LittleFS.h>
-#endif
 
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncWiFiManager.h>
 
-#define DRD_TIMEOUT 2
-#define DRD_ADDRESS 0
-
-#ifdef ESP8266
-#define ESP8266_DRD_USE_RTC false //true
-#define ESP_DRD_USE_LITTLEFS true //false
-#endif
-
-#define ESP_DRD_USE_EEPROM false
-#define ESP_DRD_USE_SPIFFS false
-#define DOUBLERESETDETECTOR_DEBUG true
-#include <ESP_DoubleResetDetector.h>
-
 class WifiWrapper
 {
 public:
-    WifiWrapper();
-    bool begin(const char *hostname, uint8_t led_pin = LED_BUILTIN);
+    WifiWrapper(uint8_t led_pin = LED_BUILTIN, uint8_t timeout = 10, uint8_t resets = 5);
+    error_t begin(const char *hostname);
     void loop();
 
 private:
+    const uint8_t m_led_pin;
+    const uint8_t m_timeout;
+    const uint8_t m_resets;
+
+    bool m_counter_cleared = false;
+
     AsyncWebServer *m_webServer;
     DNSServer *m_dnsServer;
-    DoubleResetDetector *m_drd;
+    void m_blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_t blink_delay = 250);
 };
