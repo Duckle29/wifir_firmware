@@ -9,73 +9,18 @@ String get_hostname(const char *);
 // --- Debug printing ---
 #include "error_types.h"
 #include <ArduinoLog.h>
-
-bool was_called = false;
-uint32_t last_call;
-error_t rate_limit(bool loop_marker = false);
+#include "rate_limiter.h"
+RateLimiter limiter_debug(debug_interval);
 
 // --- WiFi ---
 #include <ESP8266WiFi.h>
 #include "wifi_wrapper.h"
-WifiWrapper wm;
+WifiWrapper wm(led_pin, mrd_timeout, mrd_resets);
 
 // --- SSL ---
 #include "ssl_wrapper.h"
 SSLWrapper ssl_wrap;
 BearSSL::WiFiClientSecure *client;
-
-// --- MQTT ---
-#include <Adafruit_MQTT.h>
-#include <Adafruit_MQTT_Client.h>
-// Client
-void MQTT_connect();
-const char *get_feed_url(String feed_name);
-Adafruit_MQTT_Client *mqtt;
-
-// Feeds
-void state_rx_cb(char *data, uint16_t len);
-void config_rx_cb(char *data, uint16_t len);
-enum feed_type
-{
-    PUBLISH,
-    SUBSCRIBE
-};
-
-struct Feed
-{
-    String name;
-    feed_type type;
-    uint8_t qos;
-    void (*cb)(char *data, uint16_t len);
-
-    union
-    {
-        Adafruit_MQTT_Publish *pub_obj;
-        Adafruit_MQTT_Subscribe *sub_obj;
-    };
-};
-
-Feed *get_feed_by_name(String name);
-
-struct Feed feeds[] = {
-    {.name = "temp", .type = PUBLISH},
-    {.name = "humi", .type = PUBLISH},
-    {.name = "eco2", .type = PUBLISH},
-    {.name = "tvoc", .type = PUBLISH},
-    {.name = "state_tx", .type = PUBLISH, .qos = MQTT_QOS_1},
-    {.name = "state_rx", .type = SUBSCRIBE, .qos = MQTT_QOS_1, .cb = &state_rx_cb},
-    {.name = "config_rx", .type = SUBSCRIBE, .qos = MQTT_QOS_1, .cb = &config_rx_cb}};
-
-Adafruit_MQTT_Publish *
-    pub_feeds[5];
-String pub_feed_names[] = {"temp", "humi", "eco2", "tvoc", "state_tx"};
-
-Adafruit_MQTT_Subscribe *sub_feeds[1];
-String sub_feed_names[] = {"state_rx", "config"};
-
-// --- OTA ---
-#include "ota_wrapper.h"
-OtaWrapper *ota;
 
 // --- Sensors ---
 #include "sensor_wrapper.h"
@@ -83,4 +28,33 @@ Sensors Sens;
 
 // --- IR ---
 #include "ir_wrapper.h"
+String new_state_s;
+bool new_state;
+
 Ir ir(ir_pins[0], ir_pins[1]);
+
+// --- MQTT ---
+#include <Adafruit_MQTT.h>
+#include <Adafruit_MQTT_Client.h>
+
+RateLimiter limiter_mqtt(mqtt_interval);
+
+// Client
+void MQTT_connect();
+const char *get_feed_url(String feed_name);
+Adafruit_MQTT_Client *mqtt;
+
+// Feeds
+#include <mqtt_structures.h>
+struct Feed feeds[] = {
+    {"temp", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.t},
+    {"humi", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.rh},
+    {"eco2", PUBLISH, MQTT_QOS_0, UINT16, &Sens.eco2},
+    {"tvoc", PUBLISH, MQTT_QOS_0, UINT16, &Sens.tvoc},
+    {"state-tx", PUBLISH, MQTT_QOS_1, RXRES, &ir.rx_results},
+    {"state-rx", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &state_rx_cb},
+    {"config-rx", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &config_rx_cb}};
+
+// --- OTA ---
+#include "ota_wrapper.h"
+OtaWrapper *ota;

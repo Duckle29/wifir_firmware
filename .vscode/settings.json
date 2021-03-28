@@ -13,6 +13,9 @@
         "ssl_wrapper.h": "c",
         "*.tcc": "cpp",
         "arduino.h": "c",
-        "esp8266wifi.h": "c"
+        "esp8266wifi.h": "c",
+        "ir_wrapper.h": "c",
+        "array": "c",
+        "string": "c"
     }
 }

@@ -8,7 +8,8 @@ enum _error_codes
     W_FILE_NOT_FOUND = 1,
     I_SUCCESS = 0,
     E_SENSOR = -1,
-    E_FILE_ACCESS = -2
+    E_FILE_ACCESS = -2,
+    E_CONNECTION_FAILURE = -3
 };
 
 /* type to provide in your API */

@@ -17,9 +17,9 @@ The IR receiver is to keep track of state if someone uses the remote on-location
 
 ## ToDo
 
-- Set up all feeds using the written wrapper
+- ~~Set up all feeds using the written wrapper~~ Decided against using the wrapper, but kept the Feed struct
 - Add an MQTT based configuration feed.
-- Add callback for subscription type feeds
+- ~~Add callback for subscription type feeds~~ Done
 - ~~Add server based OTA~~ Implemented... Kinda(*) Meant to work with [ESP Update Server](http://kstobbe.dk/2019/03/20/web-server-for-esp32-and-esp8266-software-update-over-the-air/) ([git](https://github.com/kstobbe/esp-update-server))
 - Fix janky double-reset detector code maybe? It always resets on firmware flash :(
 - ~~Implement MFLN support~~ Implemented. Will probe both servers and only if they support the same
