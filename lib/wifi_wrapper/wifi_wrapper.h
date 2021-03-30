@@ -27,5 +27,7 @@ private:
 
     AsyncWebServer *m_webServer;
     DNSServer *m_dnsServer;
-    void m_blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_t blink_delay = 250);
+    void m_blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_t blink_delay = 500);
+    int m_check_resets();
+    error_t m_reset_wifi(AsyncWiFiManager *wm);
 };

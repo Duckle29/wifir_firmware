@@ -16,6 +16,8 @@
         "esp8266wifi.h": "c",
         "ir_wrapper.h": "c",
         "array": "c",
-        "string": "c"
+        "string": "c",
+        "functional": "cpp",
+        "type_traits": "cpp"
     }
 }
