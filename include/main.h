@@ -28,16 +28,15 @@ Sensors Sens;
 
 // --- IR ---
 #include "ir_wrapper.h"
-String new_state_s;
-bool new_state;
 
-Ir ir(ir_pins[0], ir_pins[1]);
+Ir ir(ir_pins[0], ir_pins[1], LED_BUILTIN, true);
 
 // --- MQTT ---
 #include <Adafruit_MQTT.h>
 #include <Adafruit_MQTT_Client.h>
 
 RateLimiter limiter_mqtt(mqtt_interval);
+RateLimiter limiter_mqtt_ping(mqtt_keepalive - 60 * 1000);
 
 // Client
 void MQTT_connect();

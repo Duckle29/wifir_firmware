@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <ArduinoLog.h>
 
 #include "error_types.h"
 #include "config.h"
@@ -14,7 +15,7 @@
 class Ir
 {
 public:
-    Ir(uint8_t RX_PIN, uint8_t TX_PIN);
+    Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN = -1, bool LED_INVERT = false);
 
     decode_results rx_results;
     bool state_changed = false;
@@ -68,6 +69,10 @@ private:
     const uint16_t m_rx_buffer_size = 1024; // ~511 bits
     // const uint16_t m_ir_freq = 36700;
     const uint8_t m_ir_timeout = 50;
+
+    const int_fast8_t m_led_pin;
+    const bool m_led_invert;
+    uint_fast32_t m_led_off_time;
 
     decode_results m_results;
     decode_type_t m_protocol;

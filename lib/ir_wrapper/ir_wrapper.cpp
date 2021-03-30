@@ -1,7 +1,10 @@
 #include "ir_wrapper.h"
 
-Ir::Ir(uint8_t RX_PIN, uint8_t TX_PIN)
+Ir::Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN, bool LED_INVERT)
+    : m_led_pin(LED_PIN),
+      m_led_invert(LED_INVERT)
 {
+
     m_ir_rx = new IRrecv(RX_PIN, m_rx_buffer_size, m_ir_timeout, false);
     m_ir_ac = new IRac(TX_PIN);
 
@@ -10,14 +13,43 @@ Ir::Ir(uint8_t RX_PIN, uint8_t TX_PIN)
 
 error_t Ir::loop()
 {
+
+    // Other functions might deal with the LED differently. Ensure it's an output
+    if (m_led_pin >= 0)
+    {
+        pinMode(m_led_pin, OUTPUT);
+    }
+
+    // Turn off the LED
+    if (millis() >= m_led_off_time && digitalRead(m_led_pin) != m_led_invert)
+    {
+        digitalWrite(m_led_pin, m_led_invert);
+    }
+
     if (m_ir_rx->decode(&m_results, nullptr, 0, 10))
     {
         m_protocol = m_results.decode_type;
 
         if (hasACState(m_protocol))
         {
+
+            if (m_protocol != UNKNOWN && m_ir_ac->next.protocol == UNKNOWN)
+            {
+                m_ir_ac->next.protocol = m_protocol;
+                m_ir_ac->markAsSent();
+                Log.trace("Protocol set to %s\n", typeToString(m_protocol).c_str());
+            }
+
+            Log.trace("New IR state(local): %s\n%s\n\n",
+                      results_as_string().c_str(),
+                      results_as_decoded_string().c_str());
+
             rx_results = m_results;
             state_changed = true;
+
+            // Blink the LED
+            digitalWrite(m_led_pin, !m_led_invert);
+            m_led_off_time = millis() + 250; // Set the led to turn off in 500ms
         }
         m_ir_rx->resume();
     }
@@ -29,18 +61,19 @@ void Ir::send_state()
 
     if (m_ir_ac->hasStateChanged())
     {
-        if (m_ir_ac->isProtocolSupported(m_protocol))
+        if (m_ir_ac->isProtocolSupported(m_ir_ac->next.protocol))
         {
-            m_ir_ac->next.protocol = m_protocol;
+            Log.trace("Sending AC state\n");
             m_ir_rx->disableIRIn(); // Disable IR in, or sending might keep triggering interrupts
             m_ir_ac->sendAc();
             m_ir_rx->enableIRIn();
-            Serial.println("I'm blaaastin");
         }
         else
         {
-            Serial.println("No protocol");
-            // State hasn't changed or protocol hasn't been set (by using OEM remote once)
+            m_ir_ac->markAsSent();
+            Log.warning(
+                "Protocol \"%s\" is not supported. Use original remote once to set the protocol\n",
+                typeToString(m_ir_ac->next.protocol).c_str());
         }
     }
 }
@@ -65,32 +98,32 @@ void Ir::set_state(String state)
         sub = state.substring(2, idx);
         Serial.println(sub);
 
-        if (state.startsWith("T")) // Temperature
+        if (state.startsWith("T=")) // Temperature
         {
-            m_ir_ac->next.celsius = sub.endsWith("C");
+            m_ir_ac->next.celsius = !sub.endsWith("F"); // This way it defaults to C if no suffix
             if (sub.endsWith("C") || sub.endsWith("F"))
             {
                 sub.remove(sub.length() - 1);
             }
             m_ir_ac->next.degrees = atof(sub.c_str());
         }
-        else if (state.startsWith("P")) // Power
+        else if (state.startsWith("P=")) // Power
         {
             m_ir_ac->next.power = IRac::strToBool(sub.c_str());
         }
-        else if (state.startsWith("M")) // Mode
+        else if (state.startsWith("M=")) // Mode
         {
             m_ir_ac->next.mode = IRac::strToOpmode(sub.c_str());
         }
-        else if (state.startsWith("H")) // Horizontal swing
+        else if (state.startsWith("H=")) // Horizontal swing
         {
             m_ir_ac->next.swingh = IRac::strToSwingH(sub.c_str());
         }
-        else if (state.startsWith("V")) // Vertical swing
+        else if (state.startsWith("V=")) // Vertical swing
         {
             m_ir_ac->next.swingv = IRac::strToSwingV(sub.c_str());
         }
-        else if (state.startsWith("S")) // Fan speed
+        else if (state.startsWith("S=")) // Fan speed
         {
             m_ir_ac->next.fanspeed = IRac::strToFanspeed(sub.c_str());
         }

@@ -76,32 +76,18 @@ void loop()
     {
         char base_buff[35];
         snprintf(base_buff, sizeof(base_buff), " baseline age: %.2f h |", (float)Sens.baseline_age / (float)(60 * 60));
-        // Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb |%s\n",
-        //            Sens.t,
-        //            Sens.rh,
-        //            Sens.eco2,
-        //            Sens.tvoc,
-        //            base_buff);
+        Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb |%s\n",
+                   Sens.t,
+                   Sens.rh,
+                   Sens.eco2,
+                   Sens.tvoc,
+                   base_buff);
     }
 
     Log.verbose(F("IR\n"));
     rc = ir.loop();
 
-    if (new_state)
-    {
-        new_state = false;
-        ir.set_state(new_state_s);
-    }
-
-    //ir.send_state();
-    // Print IR readings
-    // if (limiter_debug.ok() && ir.state_changed)
-    // {
-    //     //ir.state_changed = false;
-    //     Log.notice("New IR state(local): %s\n%s\n\n",
-    //                ir.results_as_string().c_str(),
-    //                ir.results_as_decoded_string().c_str());
-    // }
+    ir.send_state();
 
     Log.verbose(F("MQTT:PUB\n"));
     if (limiter_mqtt.ok(true))
@@ -125,10 +111,21 @@ void loop()
                     if (ir.state_changed)
                     {
                         ir.state_changed = false;
-                        String desc = ir.results_as_decoded_string();
-                        Log.trace("%s\n", desc.c_str());
-                        bool res = feeds[i].pub_obj->publish((uint8_t *)desc.c_str(), desc.length());
-                        Log.trace("res %d", res);
+
+                        char buff[127]; // Adafruit MQTT has a bug that causes a core crash on messages longer than this
+                        strncpy(buff, ir.results_as_decoded_string().c_str(), 126);
+                        buff[126] = '\0';
+
+                        Log.trace("%s\n", buff);
+                        int retries = 0;
+                        // while (!feeds[i].pub_obj->publish((uint8_t *)buff, sizeof(buff)))
+                        // {
+                        //     if (retries++ > 3)
+                        //     {
+                        //         Log.error("[MQTT:PUB] Failed to send state\n");
+                        //         break;
+                        //     }
+                        // }
                     }
                     break;
 
@@ -144,19 +141,25 @@ void loop()
     limiter_debug.ok(true);
 
     Log.verbose(F("MQTT:SUB\n"));
-    mqtt->processPackets(100);
+    mqtt->processPackets(250);
+    if (limiter_mqtt_ping.ok(true))
+    {
+        mqtt->ping();
+    }
 }
 
 void state_rx_cb(char *data, uint16_t len)
 {
-    new_state_s = String(data);
-    new_state = true;
     //Log.trace("%s\n", data);
-    //ir.set_state(data, len);
+    ir.set_state(data, len);
 }
 
 void config_rx_cb(char *data, uint16_t len)
 {
+    if (String(data) == "reboot")
+    {
+        ESP.restart();
+    }
 }
 
 const char *get_feed_url(String feed_name)

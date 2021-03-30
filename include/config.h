@@ -11,10 +11,11 @@
 const uint8_t led_pin = LED_BUILTIN;
 const uint32_t debug_interval = 1000;
 const uint32_t mqtt_interval = 30000;
+const uint32_t mqtt_keepalive = 5 * 60 * 1000;
 
 // HostName
 const char *base_name = "WiFIR";
-const char *fw_version = "v0.1.12";
+const char *fw_version = "v0.1.16";
 
 // Multiple reset detection
 const int mrd_resets = 5;   // How many resets to do to cause a settings reset
