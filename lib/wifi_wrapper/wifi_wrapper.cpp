@@ -11,61 +11,31 @@ WifiWrapper::WifiWrapper(uint8_t led_pin, uint8_t timeout, uint8_t resets)
 
 error_t WifiWrapper::begin(const char *m_hostname)
 {
+    LittleFS.begin();
     if (m_led_pin >= 0)
     {
         pinMode(m_led_pin, OUTPUT);
     }
-
-    // Detect multiple resets to clear WiFi settings
-    LittleFS.begin();
-    File reset_counter_f;
-    if (!LittleFS.exists(F("reset.counter")))
-    {
-        reset_counter_f = LittleFS.open(F("reset.counter"), "w+");
-    }
-    else
-    {
-        reset_counter_f = LittleFS.open(F("reset.counter"), "r+");
-    }
-
-    if (!reset_counter_f)
-    {
-        return E_FILE_ACCESS;
-    }
-
-    int reset_counter = reset_counter_f.parseInt() + 1;
-    reset_counter_f.seek(0);
-    reset_counter_f.println(reset_counter);
-
-    Log.notice("%d resets\n", reset_counter);
-
-    AsyncWiFiManager m_wifiManager(m_webServer, m_dnsServer);
-
-    // To give feedback, blink the amount of times the user has reset.
-    if (reset_counter >= 5)
-    {
-        reset_counter_f.seek(0);
-        reset_counter_f.println(0);
-
-        m_blink(m_led_pin, 5, 100);
-        Log.notice(F("Clearning WiFi credentials\n"));
-        //m_wifiManager.resetSettings();
-        delay(2000);
-    }
-    else if (reset_counter > 0)
-    {
-        m_blink(m_led_pin, reset_counter);
-
-        delay(2000);
-    }
-
-    reset_counter_f.close();
 
     if (m_led_pin >= 0)
     {
         digitalWrite(m_led_pin, LOW);
     }
     Log.notice(F("Starting configuration portal\n"));
+
+    AsyncWiFiManager m_wifiManager(m_webServer, m_dnsServer);
+
+    // Multiple reset detection
+    int num_resets = m_check_resets();
+    if (num_resets == E_FILE_ACCESS)
+    {
+        return (error_t)num_resets;
+    }
+    m_blink(m_led_pin, num_resets);
+    if (num_resets >= m_resets)
+    {
+        m_reset_wifi(&m_wifiManager);
+    }
 
     m_wifiManager.autoConnect(m_hostname);
 
@@ -116,4 +86,43 @@ void WifiWrapper::m_blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_
         digitalWrite(led_pin, !digitalRead(led_pin));
         delay(blink_delay / (i % 2 + 1)); // Be off for half as long as on
     }
+}
+
+int WifiWrapper::m_check_resets()
+{
+    // Detect multiple resets to clear WiFi settings
+    File reset_counter_f;
+    if (!LittleFS.exists(F("reset.counter")))
+    {
+        reset_counter_f = LittleFS.open(F("reset.counter"), "w+");
+    }
+    else
+    {
+        reset_counter_f = LittleFS.open(F("reset.counter"), "r+");
+    }
+
+    if (!reset_counter_f)
+    {
+        reset_counter_f.close();
+        return E_FILE_ACCESS;
+    }
+
+    int reset_counter = reset_counter_f.parseInt() + 1;
+    reset_counter_f.seek(0);
+    reset_counter_f.println(reset_counter);
+    reset_counter_f.close();
+
+    Log.notice("%d resets\n", reset_counter);
+
+    return reset_counter;
+}
+
+error_t WifiWrapper::m_reset_wifi(AsyncWiFiManager *wm)
+{
+    File reset_counter_f = LittleFS.open(F("reset.counter"), "w+");
+    reset_counter_f.println(0);
+
+    m_blink(m_led_pin, 5, 100);
+    Log.notice(F("Clearning WiFi credentials\n"));
+    wm->resetSettings();
 }
