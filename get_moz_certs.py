@@ -30,10 +30,13 @@ print("\nGenerating certificate store from mozilla trusted certificates")
 ar_path = Path.home() / Path('.platformio/packages/toolchain-xtensa/bin/xtensa-lx106-elf-ar.exe')  # noqa E501
 
 # check if ar and openssl are available
-if not ar_path.is_file():
+if not ar_path.is_file() and which('ar') is None:
     raise Exception("You need the program 'ar' from xtensa-lx106-elf found here: (esp8266-arduino-core)/hardware/esp8266com/esp8266/tools/xtensa-lx106-elf/xtensa-lx106-elf/bin/ar")  # noqa E501
 if which('openssl') is None and not Path('./openssl').is_file() and not Path('./openssl.exe').is_file():  # noqa E501
     raise Exception("You need to have openssl in PATH, installable from https://www.openssl.org/")  # noqa E501
+
+if not ar_path.is_file():
+    ar_path = which('ar')
 
 # Mozilla's URL for the CSV file with included PEM certs
 mozurl = "https://ccadb-public.secure.force.com/mozilla/IncludedCACertificateReportPEMCSV"  # noqa E501
