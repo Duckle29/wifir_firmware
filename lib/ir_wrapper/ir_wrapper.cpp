@@ -127,6 +127,10 @@ void Ir::set_state(String state)
         {
             m_ir_ac->next.fanspeed = IRac::strToFanspeed(sub.c_str());
         }
+        else if (state.startsWith("B="))
+        {
+            m_ir_ac->next.beep = IRac::strToBool(sub.c_str());
+        }
         state.remove(0, idx + 1);
     }
 }
