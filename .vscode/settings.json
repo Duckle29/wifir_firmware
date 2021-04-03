@@ -25,6 +25,16 @@
         "fstream": "c",
         "istream": "c",
         "ostream": "c",
-        "streambuf": "c"
+        "streambuf": "c",
+        "deque": "cpp",
+        "list": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "exception": "cpp",
+        "memory": "cpp",
+        "initializer_list": "cpp",
+        "numeric": "cpp",
+        "sstream": "cpp",
+        "littlefs.h": "c"
     }
 }

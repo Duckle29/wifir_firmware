@@ -5,21 +5,27 @@
 #include <Arduino.h>
 String _hostname;
 String get_hostname(const char *);
+void blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_t blink_delay);
 
 // --- Debug printing ---
 #include "error_types.h"
 #include "rate_limiter.h"
 #include <ArduinoLog.h>
 char mqtt_log_buff[500];
-char * p_mqtt_log_buff = mqtt_log_buff;
+char *p_mqtt_log_buff = mqtt_log_buff;
 
 RateLimiter limiter_debug(debug_interval);
-void split_message(char *dest, char* src, uint16_t segment_length, uint16_t dest_max_len);
+void split_message(char *dest, char *src, uint16_t segment_length, uint16_t dest_max_len);
+
+// --- Reset detection ---
+#include <mrd.h>
+#include <LittleFS.h>
+Mrd mrd(&LittleFS, "reset_counter", mrd_timeout);
 
 // --- WiFi ---
 #include "wifi_wrapper.h"
 #include <ESP8266WiFi.h>
-WifiWrapper wm(led_pin, mrd_timeout, mrd_resets);
+WifiWrapper wm(led_pin);
 
 // --- SSL ---
 #include "ssl_wrapper.h"

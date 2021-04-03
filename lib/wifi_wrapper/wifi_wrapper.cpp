@@ -1,17 +1,15 @@
 #include "wifi_wrapper.h"
 
-WifiWrapper::WifiWrapper(uint8_t led_pin, uint8_t timeout, uint8_t resets)
+WifiWrapper::WifiWrapper(uint8_t led_pin, bool led_inverted)
     : m_led_pin(led_pin),
-      m_timeout(timeout),
-      m_resets(resets)
+      m_led_inv(led_inverted)
 {
     m_webServer = new AsyncWebServer(80);
     m_dnsServer = new DNSServer();
 }
 
-error_t WifiWrapper::begin(const char *m_hostname)
+error_t WifiWrapper::begin(const char *m_hostname, bool reset)
 {
-    LittleFS.begin();
     if (m_led_pin >= 0)
     {
         pinMode(m_led_pin, OUTPUT);
@@ -19,20 +17,13 @@ error_t WifiWrapper::begin(const char *m_hostname)
 
     if (m_led_pin >= 0)
     {
-        digitalWrite(m_led_pin, LOW);
+        digitalWrite(m_led_pin, !m_led_inv);
     }
     Log.notice(F("Starting configuration portal\n"));
 
     AsyncWiFiManager m_wifiManager(m_webServer, m_dnsServer);
 
-    // Multiple reset detection
-    int num_resets = m_check_resets();
-    if (num_resets == E_FILE_ACCESS)
-    {
-        return (error_t)num_resets;
-    }
-    m_blink(m_led_pin, num_resets);
-    if (num_resets >= m_resets)
+    if (reset)
     {
         m_reset_wifi(&m_wifiManager);
     }
@@ -41,8 +32,7 @@ error_t WifiWrapper::begin(const char *m_hostname)
 
     if (m_led_pin >= 0)
     {
-        digitalWrite(m_led_pin, HIGH);
-        pinMode(m_led_pin, INPUT);
+        digitalWrite(m_led_pin, m_led_inv);
     }
 
     if (WiFi.status() != WL_CONNECTED)
@@ -58,77 +48,8 @@ error_t WifiWrapper::begin(const char *m_hostname)
     }
 }
 
-void WifiWrapper::loop()
-{
-    if (m_counter_cleared)
-    {
-        return;
-    }
-    if (millis() > m_timeout * 1000)
-    {
-        File reset_counter_f = LittleFS.open(F("reset.counter"), "r+");
-        int resets = reset_counter_f.parseInt();
-
-        reset_counter_f.seek(0);
-        reset_counter_f.println(0);
-
-        reset_counter_f.close();
-
-        m_counter_cleared = true;
-        Log.notice("Cleared reset counter, was %d\n", resets);
-    }
-}
-
-void WifiWrapper::m_blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_t blink_delay)
-{
-    for (uint_fast8_t i = 0; i < times * 2; i++)
-    {
-        digitalWrite(led_pin, !digitalRead(led_pin));
-        delay(blink_delay / (i % 2 + 1)); // Be off for half as long as on
-    }
-}
-
-int WifiWrapper::m_check_resets()
-{
-    // Detect multiple resets to clear WiFi settings
-    File reset_counter_f;
-    if (!LittleFS.exists(F("reset.counter")))
-    {
-        reset_counter_f = LittleFS.open(F("reset.counter"), "w+");
-    }
-    else
-    {
-        reset_counter_f = LittleFS.open(F("reset.counter"), "r+");
-    }
-
-    if (!reset_counter_f)
-    {
-        reset_counter_f.close();
-        return E_FILE_ACCESS;
-    }
-
-    int reset_counter = reset_counter_f.parseInt() + 1;
-    reset_counter_f.seek(0);
-    reset_counter_f.println(reset_counter);
-    reset_counter_f.close();
-
-    Log.notice("%d resets\n", reset_counter);
-
-    return reset_counter;
-}
-
 error_t WifiWrapper::m_reset_wifi(AsyncWiFiManager *wm)
 {
-    File reset_counter_f = LittleFS.open(F("reset.counter"), "w+");
-    if (!reset_counter_f)
-    {
-        reset_counter_f.close();
-        return E_FILE_ACCESS;
-    }
-
-    reset_counter_f.println(0);
-
-    m_blink(m_led_pin, 5, 100);
     Log.notice(F("Clearning WiFi credentials\n"));
     wm->resetSettings();
     return I_SUCCESS;
