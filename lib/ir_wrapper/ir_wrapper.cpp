@@ -8,6 +8,14 @@ Ir::Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN, bool LED_I
     m_ir_rx = new IRrecv(RX_PIN, m_rx_buffer_size, m_ir_timeout, false);
     m_ir_ac = new IRac(TX_PIN);
 
+    decode_type_t protocol;
+    if (m_read_protocol(&protocol) == I_SUCCESS && protocol != UNUSED && protocol != UNKNOWN)
+    {
+        m_ir_ac->next.protocol = protocol;
+        m_ir_ac->markAsSent();
+    }
+
+
     m_ir_rx->enableIRIn();
 }
 
@@ -28,15 +36,17 @@ error_t Ir::loop()
 
     if (m_ir_rx->decode(&m_results, nullptr, 0, 10))
     {
-        m_protocol = m_results.decode_type;
+        decode_type_t m_protocol = m_results.decode_type;
 
         if (hasACState(m_protocol))
         {
 
-            if (m_protocol != UNKNOWN && m_ir_ac->next.protocol == UNKNOWN)
+            if (m_protocol != UNKNOWN && (m_ir_ac->next.protocol == UNKNOWN || m_ir_ac->next.protocol == UNUSED))
             {
                 m_ir_ac->next.protocol = m_protocol;
                 m_ir_ac->markAsSent();
+                m_save_protocol(m_protocol);
+
                 Log.trace("Protocol set to %s\n", typeToString(m_protocol).c_str());
             }
 
@@ -143,4 +153,45 @@ String Ir::results_as_string()
 String Ir::results_as_decoded_string()
 {
     return IRAcUtils::resultAcToString(&rx_results);
+}
+
+error_t Ir::reset_protocol()
+{
+    File prot_f = LittleFS.open(F("IR_protocol"), "w");
+    if (!prot_f)
+    {
+        return E_FILE_ACCESS;
+    }
+
+    prot_f.println(-1);
+    return I_SUCCESS;
+}
+
+error_t Ir::m_save_protocol(decode_type_t protocol)
+{
+    File prot_f = LittleFS.open(F("IR_protocol"), "w");
+    if (!prot_f)
+    {
+        return E_FILE_ACCESS;
+    }
+
+    prot_f.println((long)protocol);
+    return I_SUCCESS;
+}
+
+error_t Ir::m_read_protocol(decode_type_t * protocol)
+{
+    if (!LittleFS.exists(F("IR_protocol")))
+    {
+        return W_FILE_NOT_FOUND;
+    }
+
+    File prot_f = LittleFS.open(F("IR_protocol"), "r");
+    if (!prot_f)
+    {
+        return E_FILE_ACCESS;
+    }
+
+    *protocol = (decode_type_t)prot_f.parseInt();
+    return I_SUCCESS;
 }

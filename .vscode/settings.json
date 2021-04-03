@@ -18,6 +18,13 @@
         "array": "c",
         "string": "c",
         "functional": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "regex": "cpp",
+        "bitset": "c",
+        "random": "c",
+        "fstream": "c",
+        "istream": "c",
+        "ostream": "c",
+        "streambuf": "c"
     }
 }

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Arduino.h>
+#include <LittleFS.h>
+
 #include <ArduinoLog.h>
 
 #include "config.h"
@@ -10,7 +12,6 @@
 #include <IRrecv.h>
 #include <IRremoteESP8266.h>
 #include <IRutils.h>
-// #include <ir_Panasonic.h>
 
 class Ir
 {
@@ -18,6 +19,7 @@ class Ir
     Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN = -1, bool LED_INVERT = false);
 
     decode_results rx_results;
+
     bool state_changed = false;
 
     error_t loop();
@@ -61,7 +63,7 @@ class Ir
     void set_state(char *state, uint_fast16_t len);
 
     void send_state();
-    void reset_protocol();
+    error_t reset_protocol();
 
     String results_as_string(void);
     String results_as_decoded_string(void);
@@ -76,8 +78,10 @@ class Ir
     uint_fast32_t m_led_off_time;
 
     decode_results m_results;
-    decode_type_t m_protocol;
 
     IRrecv *m_ir_rx;
     IRac *m_ir_ac;
+
+    error_t m_save_protocol(decode_type_t protocol);
+    error_t m_read_protocol(decode_type_t *protocol);
 };
