@@ -12,7 +12,8 @@ enum data_type
 {
     NONE,
     FLOAT,
-    RXRES,
+    BYTES,
+    IRRX,
     UINT16,
     CB
 };

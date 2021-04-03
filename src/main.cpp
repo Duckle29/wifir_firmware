@@ -10,14 +10,20 @@ void setup()
     Log.notice("\nBOOT\n");
     Log.notice("%s version %s\n", base_name, fw_version);
 
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "BOOT: %s Version %s\n", base_name, fw_version);
+
     // WiFi
     wm.begin(_hostname.c_str());
+
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "Connected with IP: %s\n", WiFi.localIP().toString().c_str());
 
     // SSL
     ssl_wrap.begin(USER_TZ);
     Log.notice("Testing MFLN server capabilites");
     uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
     uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
+
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "MFLN support: OTA=%d, MQTTS=%d\n", ota_mfln, mqtts_mfln);
 
     Log.notice("MFLN support: MQTTS=%d | OTA=%d", mqtts_mfln, ota_mfln);
 
@@ -57,6 +63,7 @@ void setup()
 
     Sens.set_offset(temp_offset);
     Sens.begin();
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "Exiting setup, device operational");
 }
 
 void loop()
@@ -104,25 +111,56 @@ void loop()
                     feeds[i].pub_obj->publish(*(float *)feeds[i].data);
                     break;
 
-                case RXRES:
+                case BYTES:
+                    char * src;
+                    src = (char *)feeds[i].data;
+                    while (String(src).length() && src != nullptr)
+                    {
+                        char dest_buff[mqtt_max_len];
+                        split_message(dest_buff, src, sizeof(dest_buff), sizeof(dest_buff));
+
+                        uint_fast8_t retries = 0;
+                        while (!feeds[i].pub_obj->publish(dest_buff))
+                        {
+                            if (retries++ >= mqtt_max_retries)
+                            {
+                                Log.error("[MQTT:PUB] Faild to send log");
+                            }
+                        }
+                    }
+                    p_mqtt_log_buff = mqtt_log_buff;
+                    break;
+
+                case IRRX:
+
                     if (ir.state_changed)
                     {
+                        decode_results res = *(decode_results*)feeds[i].data;
+                        char buff[sizeof(res)+1];
+
+                        stdAc::state_t state;
+                        stdAc::state_t prev;
+                        IRAcUtils::decodeToState(&res, &state, &prev);
+
+                        memcpy(buff, &state, sizeof(state));
+                        buff[sizeof(state)] = '\0';
+
+
+                        if(String(buff).length())
+                        {
+                            char dest_buff[mqtt_max_len];
+                            split_message(dest_buff, src, sizeof(dest_buff), sizeof(dest_buff));
+
+                            uint_fast8_t retries = 0;
+                            while (!feeds[i].pub_obj->publish(dest_buff))
+                            {
+                                if (retries++ >= mqtt_max_retries)
+                                {
+                                    Log.error("[MQTT:PUB] Faild to send state");
+                                }
+                            }
+                        }
                         ir.state_changed = false;
-
-                        char buff[127]; // Adafruit MQTT has a bug that causes a core crash on messages longer than this
-                        strncpy(buff, ir.results_as_decoded_string().c_str(), 126);
-                        buff[126] = '\0';
-
-                        Log.trace("%s\n", buff);
-                        // int retries = 0;
-                        // while (!feeds[i].pub_obj->publish((uint8_t *)buff, sizeof(buff)))
-                        // {
-                        //     if (retries++ > 3)
-                        //     {
-                        //         Log.error("[MQTT:PUB] Failed to send state\n");
-                        //         break;
-                        //     }
-                        // }
                     }
                     break;
 
@@ -157,6 +195,10 @@ void config_rx_cb(char *data, uint16_t len)
     {
         ESP.restart();
     }
+    else if (String(data) == "ota")
+    {
+        ota->loop(true);
+    }
 }
 
 const char *get_feed_url(String feed_name)
@@ -176,6 +218,31 @@ String get_hostname(const char *base_name)
     chipID.toUpperCase();
 
     return String(base_name) + "-" + chipID;
+}
+
+void split_message(char * dest, char * src, uint16_t segment_len, uint16_t dest_max_len)
+{
+    if (String(src).length() <= segment_len)
+    {
+        strncpy(dest, src, dest_max_len);
+        src[0] = '\0';
+        return;
+    }
+
+    String s = String(src);
+    int next_newline = s.indexOf('\n');
+    int next_space = s.indexOf('\0');
+    if (next_newline <= segment_len)
+    {
+        strncpy(dest, s.substring(0, next_newline).c_str(), dest_max_len);
+        strcpy(src, s.substring(next_newline+1).c_str());
+    } else if (next_space <= segment_len) {
+        strncpy(dest, s.substring(0, next_newline).c_str(), dest_max_len);
+        strcpy(src, s.substring(next_newline+1).c_str());
+    } else {
+        strncpy(dest, s.substring(0, next_newline).c_str(), dest_max_len);
+        strcpy(src, s.substring(next_newline+1).c_str());
+    }
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.

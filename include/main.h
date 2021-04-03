@@ -10,7 +10,11 @@ String get_hostname(const char *);
 #include "error_types.h"
 #include "rate_limiter.h"
 #include <ArduinoLog.h>
+char mqtt_log_buff[500];
+char * p_mqtt_log_buff = mqtt_log_buff;
+
 RateLimiter limiter_debug(debug_interval);
+void split_message(char *dest, char* src, uint16_t segment_length, uint16_t dest_max_len);
 
 // --- WiFi ---
 #include "wifi_wrapper.h"
@@ -34,6 +38,8 @@ Ir ir(ir_pins[0], ir_pins[1], LED_BUILTIN, true);
 // --- MQTT ---
 #include <Adafruit_MQTT.h>
 #include <Adafruit_MQTT_Client.h>
+const uint_fast16_t mqtt_max_len = 90;
+const uint_fast8_t mqtt_max_retries = 3;
 
 RateLimiter limiter_mqtt(mqtt_interval);
 RateLimiter limiter_mqtt_ping(mqtt_keepalive - 60 * 1000);
@@ -49,9 +55,10 @@ struct Feed feeds[] = {{"temp", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.t},
                        {"humi", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.rh},
                        {"eco2", PUBLISH, MQTT_QOS_0, UINT16, &Sens.eco2},
                        {"tvoc", PUBLISH, MQTT_QOS_0, UINT16, &Sens.tvoc},
-                       {"state-tx", PUBLISH, MQTT_QOS_1, RXRES, &ir.rx_results},
-                       {"state-rx", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &state_rx_cb},
-                       {"config-rx", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &config_rx_cb}};
+                       {"ir-state", PUBLISH, MQTT_QOS_1, IRRX, &ir.rx_results},
+                       {"log", PUBLISH, MQTT_QOS_0, BYTES, &mqtt_log_buff},
+                       {"set-state", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &state_rx_cb},
+                       {"config", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &config_rx_cb}};
 
 // --- OTA ---
 #include "ota_wrapper.h"
