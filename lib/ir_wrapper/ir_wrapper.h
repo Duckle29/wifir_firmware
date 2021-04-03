@@ -3,18 +3,18 @@
 #include <Arduino.h>
 #include <ArduinoLog.h>
 
-#include "error_types.h"
 #include "config.h"
+#include "error_types.h"
 
-#include <IRrecv.h>
 #include <IRac.h>
-#include <IRutils.h>
+#include <IRrecv.h>
 #include <IRremoteESP8266.h>
+#include <IRutils.h>
 // #include <ir_Panasonic.h>
 
 class Ir
 {
-public:
+  public:
     Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN = -1, bool LED_INVERT = false);
 
     decode_results rx_results;
@@ -61,11 +61,12 @@ public:
     void set_state(char *state, uint_fast16_t len);
 
     void send_state();
+    void reset_protocol();
 
     String results_as_string(void);
     String results_as_decoded_string(void);
 
-private:
+  private:
     const uint16_t m_rx_buffer_size = 1024; // ~511 bits
     // const uint16_t m_ir_freq = 36700;
     const uint8_t m_ir_timeout = 50;

@@ -120,9 +120,16 @@ int WifiWrapper::m_check_resets()
 error_t WifiWrapper::m_reset_wifi(AsyncWiFiManager *wm)
 {
     File reset_counter_f = LittleFS.open(F("reset.counter"), "w+");
+    if (!reset_counter_f)
+    {
+        reset_counter_f.close();
+        return E_FILE_ACCESS;
+    }
+
     reset_counter_f.println(0);
 
     m_blink(m_led_pin, 5, 100);
     Log.notice(F("Clearning WiFi credentials\n"));
     wm->resetSettings();
+    return I_SUCCESS;
 }

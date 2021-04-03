@@ -1,6 +1,6 @@
 #pragma once
-#include <Arduino.h>
 #include <Adafruit_MQTT.h>
+#include <Arduino.h>
 
 enum feed_type
 {
@@ -29,8 +29,7 @@ struct Feed
     void *data;
     cb_p cb;
 
-    union
-    {
+    union {
         Adafruit_MQTT_Publish *pub_obj;
         Adafruit_MQTT_Subscribe *sub_obj;
     };

@@ -15,16 +15,17 @@ void setup()
 
     // SSL
     ssl_wrap.begin(USER_TZ);
-    // Log.notice("Testing MFLN server capabilites");
-    // uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
-    // uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
+    Log.notice("Testing MFLN server capabilites");
+    uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
+    uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
 
-    // if (mqtts_mfln == ota_mfln && mqtts_mfln != 0)
-    // {
-    //     ssl_wrap.set_mfln(ota_mfln);
-    // }
+    Log.notice("MFLN support: MQTTS=%d | OTA=%d", mqtts_mfln, ota_mfln);
 
-    //Log.notice("Servers support %d (mqtt) : %d (ota) mfln", mqtts_mfln, ota_mfln);
+    if (mqtts_mfln == ota_mfln && mqtts_mfln != 0)
+    {
+        ssl_wrap.set_mfln(ota_mfln);
+    }
+
     client = ssl_wrap.get_client();
 
     // OTA
@@ -76,12 +77,8 @@ void loop()
     {
         char base_buff[35];
         snprintf(base_buff, sizeof(base_buff), " baseline age: %.2f h |", (float)Sens.baseline_age / (float)(60 * 60));
-        Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb |%s\n",
-                   Sens.t,
-                   Sens.rh,
-                   Sens.eco2,
-                   Sens.tvoc,
-                   base_buff);
+        Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb |%s\n", Sens.t, Sens.rh, Sens.eco2,
+                   Sens.tvoc, base_buff);
     }
 
     Log.verbose(F("IR\n"));
@@ -117,7 +114,7 @@ void loop()
                         buff[126] = '\0';
 
                         Log.trace("%s\n", buff);
-                        int retries = 0;
+                        // int retries = 0;
                         // while (!feeds[i].pub_obj->publish((uint8_t *)buff, sizeof(buff)))
                         // {
                         //     if (retries++ > 3)
@@ -150,7 +147,7 @@ void loop()
 
 void state_rx_cb(char *data, uint16_t len)
 {
-    //Log.trace("%s\n", data);
+    // Log.trace("%s\n", data);
     ir.set_state(data, len);
 }
 
