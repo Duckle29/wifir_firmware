@@ -12,7 +12,8 @@ void setup()
     Log.notice("\nBOOT\n");
     Log.notice("%s version %s\n", base_name, fw_version);
 
-    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "BOOT: %s Version %s\n", base_name, fw_version);
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                                "BOOT: %s Version %s\n", base_name, fw_version);
 
     // Reset detection
     bool clear_settings = false;
@@ -32,20 +33,19 @@ void setup()
     // WiFi
     wm.begin(_hostname.c_str(), clear_settings);
 
-
-    p_mqtt_log_buff +=
-        snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "Connected with IP: %s\n", WiFi.localIP().toString().c_str());
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                                "Connected with IP: %s\n", WiFi.localIP().toString().c_str());
 
     // SSL
     ssl_wrap.begin(USER_TZ);
+
     Log.notice("Testing MFLN server capabilites");
     uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
     uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                                "MFLN support: OTA=%d, MQTTS=%d\n", ota_mfln, mqtts_mfln);
 
-    p_mqtt_log_buff +=
-        snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "MFLN support: OTA=%d, MQTTS=%d\n", ota_mfln, mqtts_mfln);
-
-    Log.notice("MFLN support: MQTTS=%d | OTA=%d", mqtts_mfln, ota_mfln);
+    Log.notice("MFLN support: MQTTS=%d | OTA=%d\n", mqtts_mfln, ota_mfln);
 
     if (mqtts_mfln == ota_mfln && mqtts_mfln != 0)
     {
@@ -83,7 +83,7 @@ void setup()
 
     Sens.set_offset(temp_offset);
     Sens.begin();
-    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff), "Exiting setup, device operational");
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Exiting setup, device operational");
 }
 
 void loop()
@@ -116,9 +116,24 @@ void loop()
     Log.verbose(F("MQTT:PUB\n"));
     if (limiter_mqtt.ok(true))
     {
+        mqtt_handle();
+    }
+    limiter_debug.ok(true);
 
+    Log.verbose(F("MQTT:SUB\n"));
+    mqtt->processPackets(250);
+    if (limiter_mqtt_ping.ok(true))
+    {
+        mqtt->ping();
+    }
+}
+
+error_t mqtt_handle()
+{
+    error_t last_return_code = I_SUCCESS;
+    {
         MQTT_connect();
-        Log.trace("MQTT publish\n");
+        Log.notice("MQTT publish\n");
 
         for (uint_fast8_t i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
         {
@@ -141,7 +156,7 @@ void loop()
                     while (src_p < src_end && src_p != nullptr)
                     {
                         char dest_buff[mqtt_max_len];
-                        int bytes = segment_data(dest_buff, src_p, mqtt_max_len-1);
+                        int bytes = segment_data(dest_buff, src_p, mqtt_max_len - 1);
                         src_p += bytes;
                         dest_buff[bytes] = '\0';
 
@@ -150,11 +165,14 @@ void loop()
                         {
                             if (retries++ >= mqtt_max_retries)
                             {
-                                Log.error("[MQTT:PUB] Faild to send log");
+                                Log.error("[MQTT:PUB] Faild to send log\n");
+                                Log.error("[MQTT:LOG] src_p - src: %d\n", (uint64_t)(src_p - (char*)feeds[i].data));
+                                break;
                             }
                         }
                     }
                     p_mqtt_log_buff = mqtt_log_buff;
+                    mqtt_log_buff[0] = '\0';
                     break;
 
                 case IRRX:
@@ -169,13 +187,14 @@ void loop()
 
                         uint8_t dest_buff[mqtt_max_len];
 
-                        void * state_p = &state;
+                        void *state_p = &state;
 
                         uint64_t state_end = (uint64_t)state_p + sizeof(state);
 
                         while ((uint64_t)state_p < state_end)
                         {
-                            uint_fast16_t bytes = segment_data(dest_buff, state_p, mqtt_max_len, state_end - (uint64_t)state_p);
+                            uint_fast16_t bytes =
+                                segment_data(dest_buff, state_p, mqtt_max_len, state_end - (uint64_t)state_p);
                             state_p = (uint8_t *)state_p + bytes;
 
                             uint_fast8_t retries = 0;
@@ -183,7 +202,8 @@ void loop()
                             {
                                 if (retries++ >= mqtt_max_retries)
                                 {
-                                    Log.error("[MQTT:PUB] Faild to send state");
+                                    Log.error("[MQTT:PUB] Faild to send state\n");
+                                    break;
                                 }
                             }
                         }
@@ -200,14 +220,7 @@ void loop()
             }
         }
     }
-    limiter_debug.ok(true);
-
-    Log.verbose(F("MQTT:SUB\n"));
-    mqtt->processPackets(250);
-    if (limiter_mqtt_ping.ok(true))
-    {
-        mqtt->ping();
-    }
+    return last_return_code;
 }
 
 void state_rx_cb(char *data, uint16_t len)
@@ -220,10 +233,14 @@ void config_rx_cb(char *data, uint16_t len)
 {
     if (String(data) == "reboot")
     {
+        p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Rebooting");
+        mqtt_handle();
         ESP.restart();
     }
     else if (String(data) == "ota")
     {
+        p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Checking for update");
+        mqtt_handle();
         ota->loop(true);
     }
 }
@@ -250,18 +267,21 @@ String get_hostname(const char *base_name)
 /**
  * @brief Splits a source buffer into segments and places the segments in dest array.
  *
- * @param dest The buffer to place the segments in. Ensure this is at least *segment_length* large. This function doesn't add null termination.
+ * @param dest The buffer to place the segments in. Ensure this is at least *segment_length* large. This function
+ * doesn't add null termination.
  * @param src  The input buffer.
  * @param segment_length The max length of a segment
  * @param src_length The length of the input src. If set to 0 will try to find it with strlen(). Default: 0
- * @param preffered_split_characters Null terminated string of characters to prefer to split on, in order of decreasing preference. Defaults to newline -> space -> null (for splitting strings)
+ * @param preffered_split_characters Null terminated string of characters to prefer to split on, in order of decreasing
+ * preference. Defaults to newline -> space -> null (for splitting strings)
  * @return int The amount of bytes placed in the dest buffer
  */
-int segment_data (void *dest, const void *src, uint_fast32_t segment_length, uint_fast32_t src_length, const char * preffered_split_characters)
+int segment_data(void *dest, const void *src, uint_fast32_t segment_length, uint_fast32_t src_length,
+                 const char *preffered_split_characters)
 {
     if (src_length == 0)
     {
-        src_length = strlen((const char*)src);
+        src_length = strlen((const char *)src);
     }
 
     // If the src data is already short enough, just move it to the destination and return it's length
@@ -272,13 +292,26 @@ int segment_data (void *dest, const void *src, uint_fast32_t segment_length, uin
     }
 
     // Go through list of preferred split characters, returning on the first one that's short enough
-    for(uint_fast16_t i=0; i<strlen(preffered_split_characters); i++)
+    char segment_buff[segment_length];
+    memmove(segment_buff, src, segment_length);
+    for (uint_fast16_t i = 0; i < strlen(preffered_split_characters); i++)
     {
-        uint_fast16_t split_char_idx = strchr((const char*)src, preffered_split_characters[i]) - (const char *)src;
-        if(split_char_idx <= segment_length)
+        char * split_char_p = strrchr(segment_buff, preffered_split_characters[i]);
+
+        if(split_char_p == 0)
         {
+            continue;
+        }
+
+        uint_fast64_t split_char_idx = split_char_p - (const char *)segment_buff;
+
+        Log.verbose("Found %d at idx %d\n", preffered_split_characters[i], split_char_idx);
+
+        if (split_char_idx+1 <= segment_length)
+        {
+            Log.trace("[segment] %d\n", (int)split_char_idx+1);
             memmove(dest, src, split_char_idx);
-            return split_char_idx;
+            return split_char_idx+1;
         }
     }
 
@@ -286,7 +319,6 @@ int segment_data (void *dest, const void *src, uint_fast32_t segment_length, uin
     memmove(dest, src, segment_length);
     return segment_length;
 }
-
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
@@ -306,9 +338,9 @@ void MQTT_connect()
     while ((ret = mqtt->connect()) != 0)
     { // connect will return 0 for connected
         Log.warning("%s\n", mqtt->connectErrorString(ret));
-        Log.warning("Retrying MQTT connection in 5 seconds...\n");
+        Log.warning("Retrying MQTT connection in 15 seconds...\n");
         mqtt->disconnect();
-        delay(5000); // wait 5 seconds
+        delay(15000); // wait 5 seconds
         retries--;
         if (retries == 0)
         {
@@ -320,8 +352,6 @@ void MQTT_connect()
 
     Log.trace("MQTT Connected!\n");
 }
-
-
 
 void blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_t blink_delay)
 {

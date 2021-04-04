@@ -15,11 +15,12 @@ char mqtt_log_buff[500];
 char *p_mqtt_log_buff = mqtt_log_buff;
 
 RateLimiter limiter_debug(debug_interval);
-int segment_data (void *dest, const void *src, uint_fast32_t segment_length, uint_fast32_t src_length=0, const char * preffered_split_characters = "\n \0");
+int segment_data(void *dest, const void *src, uint_fast32_t segment_length, uint_fast32_t src_length = 0,
+                 const char *preffered_split_characters = "\n \0");
 
 // --- Reset detection ---
-#include <mrd.h>
 #include <LittleFS.h>
+#include <mrd.h>
 Mrd mrd(&LittleFS, "reset_counter", mrd_timeout);
 
 // --- WiFi ---
@@ -49,6 +50,7 @@ const uint_fast8_t mqtt_max_retries = 3;
 
 RateLimiter limiter_mqtt(mqtt_interval);
 RateLimiter limiter_mqtt_ping(mqtt_keepalive - 60 * 1000);
+error_t mqtt_handle();
 
 // Client
 void MQTT_connect();
@@ -62,7 +64,7 @@ struct Feed feeds[] = {{"temp", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.t},
                        {"eco2", PUBLISH, MQTT_QOS_0, UINT16, &Sens.eco2},
                        {"tvoc", PUBLISH, MQTT_QOS_0, UINT16, &Sens.tvoc},
                        {"ir-state", PUBLISH, MQTT_QOS_1, IRRX, &ir.rx_results},
-                       {"log", PUBLISH, MQTT_QOS_0, BYTES, &mqtt_log_buff},
+                       {"log", PUBLISH, MQTT_QOS_0, BYTES, mqtt_log_buff},
                        {"set-state", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &state_rx_cb},
                        {"config", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &config_rx_cb}};
 
