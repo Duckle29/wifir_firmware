@@ -132,12 +132,18 @@ void loop()
                     break;
 
                 case BYTES:
-                    char *src;
-                    src = (char *)feeds[i].data;
-                    while (String(src).length() && src != nullptr)
+                    char *src_p;
+                    char *src_end;
+
+                    src_p = (char *)feeds[i].data;
+                    src_end = src_p + strlen(src_p);
+
+                    while (src_p < src_end && src_p != nullptr)
                     {
                         char dest_buff[mqtt_max_len];
-                        split_message(dest_buff, src, sizeof(dest_buff), sizeof(dest_buff));
+                        int bytes = segment_data(dest_buff, src_p, mqtt_max_len-1);
+                        src_p += bytes;
+                        dest_buff[bytes] = '\0';
 
                         uint_fast8_t retries = 0;
                         while (!feeds[i].pub_obj->publish(dest_buff))
@@ -156,21 +162,22 @@ void loop()
                     if (ir.state_changed)
                     {
                         decode_results res = *(decode_results *)feeds[i].data;
-                        char buff[sizeof(res) + 1];
 
                         stdAc::state_t state;
                         stdAc::state_t prev;
                         IRAcUtils::decodeToState(&res, &state, &prev);
 
-                        memcpy(buff, &state, sizeof(state));
-                        buff[sizeof(state)] = '\0';
+                        char dest_buff[mqtt_max_len];
 
-                        if (String(buff).length())
+                        void * state_p = &state;
+
+                        uint64_t state_end = (uint64_t)state_p + sizeof(state);
+
+                        while ((uint64_t)state_p < state_end)
                         {
-                            char dest_buff[mqtt_max_len];
-                            split_message(dest_buff, buff, sizeof(dest_buff), sizeof(dest_buff));
-
+                            state_p = (uint8_t *)state_p + segment_data(dest_buff, state_p, mqtt_max_len, state_end - (uint64_t)state_p);
                             uint_fast8_t retries = 0;
+
                             while (!feeds[i].pub_obj->publish(dest_buff))
                             {
                                 if (retries++ >= mqtt_max_retries)
@@ -239,34 +246,46 @@ String get_hostname(const char *base_name)
     return String(base_name) + "-" + chipID;
 }
 
-void split_message(char *dest, char *src, uint16_t segment_len, uint16_t dest_max_len)
+/**
+ * @brief Splits a source buffer into segments and places the segments in dest array.
+ *
+ * @param dest The buffer to place the segments in. Ensure this is at least *segment_length* large. This function doesn't add null termination.
+ * @param src  The input buffer.
+ * @param segment_length The max length of a segment
+ * @param src_length The length of the input src. If set to 0 will try to find it with strlen(). Default: 0
+ * @param preffered_split_characters Null terminated string of characters to prefer to split on, in order of decreasing preference. Defaults to newline -> space -> null (for splitting strings)
+ * @return int The amount of bytes placed in the dest buffer
+ */
+int segment_data (void *dest, const void *src, uint_fast32_t segment_length, uint_fast32_t src_length, const char * preffered_split_characters)
 {
-    if (String(src).length() <= segment_len)
+    if (src_length == 0)
     {
-        strncpy(dest, src, dest_max_len);
-        src[0] = '\0';
-        return;
+        src_length = strlen((const char*)src);
     }
 
-    String s = String(src);
-    int next_newline = s.indexOf('\n');
-    int next_space = s.indexOf('\0');
-    if (next_newline <= segment_len)
+    // If the src data is already short enough, just move it to the destination and return it's length
+    if (src_length <= segment_length)
     {
-        strncpy(dest, s.substring(0, next_newline).c_str(), dest_max_len);
-        strcpy(src, s.substring(next_newline + 1).c_str());
+        memmove(dest, src, src_length);
+        return src_length;
     }
-    else if (next_space <= segment_len)
+
+    // Go through list of preferred split characters, returning on the first one that's short enough
+    for(uint_fast16_t i=0; i<strlen(preffered_split_characters); i++)
     {
-        strncpy(dest, s.substring(0, next_newline).c_str(), dest_max_len);
-        strcpy(src, s.substring(next_newline + 1).c_str());
+        uint_fast16_t split_char_idx = strchr((const char*)src, preffered_split_characters[i]) - (const char *)src;
+        if(split_char_idx <= segment_length)
+        {
+            memmove(dest, src, split_char_idx);
+            return split_char_idx;
+        }
     }
-    else
-    {
-        strncpy(dest, s.substring(0, next_newline).c_str(), dest_max_len);
-        strcpy(src, s.substring(next_newline + 1).c_str());
-    }
+
+    // If no preferred split points have been found, just segment it into *segment_length* chunks
+    memmove(dest, src, segment_length);
+    return segment_length;
 }
+
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.

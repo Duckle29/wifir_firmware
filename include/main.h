@@ -15,7 +15,7 @@ char mqtt_log_buff[500];
 char *p_mqtt_log_buff = mqtt_log_buff;
 
 RateLimiter limiter_debug(debug_interval);
-void split_message(char *dest, char *src, uint16_t segment_length, uint16_t dest_max_len);
+int segment_data (void *dest, const void *src, uint_fast32_t segment_length, uint_fast32_t src_length=0, const char * preffered_split_characters = "\n \0");
 
 // --- Reset detection ---
 #include <mrd.h>
