@@ -309,7 +309,6 @@ int segment_data(void *dest, const void *src, uint_fast32_t segment_length, uint
 
         if (split_char_idx+1 <= segment_length)
         {
-            Log.trace("[segment] %d\n", (int)split_char_idx+1);
             memmove(dest, src, split_char_idx);
             return split_char_idx+1;
         }
