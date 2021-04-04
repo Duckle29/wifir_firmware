@@ -167,7 +167,7 @@ void loop()
                         stdAc::state_t prev;
                         IRAcUtils::decodeToState(&res, &state, &prev);
 
-                        char dest_buff[mqtt_max_len];
+                        uint8_t dest_buff[mqtt_max_len];
 
                         void * state_p = &state;
 
@@ -175,10 +175,11 @@ void loop()
 
                         while ((uint64_t)state_p < state_end)
                         {
-                            state_p = (uint8_t *)state_p + segment_data(dest_buff, state_p, mqtt_max_len, state_end - (uint64_t)state_p);
-                            uint_fast8_t retries = 0;
+                            uint_fast16_t bytes = segment_data(dest_buff, state_p, mqtt_max_len, state_end - (uint64_t)state_p);
+                            state_p = (uint8_t *)state_p + bytes;
 
-                            while (!feeds[i].pub_obj->publish(dest_buff))
+                            uint_fast8_t retries = 0;
+                            while (!feeds[i].pub_obj->publish(dest_buff, bytes))
                             {
                                 if (retries++ >= mqtt_max_retries)
                                 {
