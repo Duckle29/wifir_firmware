@@ -15,7 +15,7 @@ const uint32_t mqtt_keepalive = 5 * 60 * 1000;
 
 // HostName
 const char *base_name = "WiFIR";
-const char *fw_version = "v0.1.26";
+const char *fw_version = "v0.1.34";
 
 // Multiple reset detection
 const int mrd_resets = 5;   // How many resets to do to cause a settings reset

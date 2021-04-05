@@ -19,6 +19,7 @@ class Ir
     Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN = -1, bool LED_INVERT = false);
 
     decode_results rx_results;
+    char state_str[100];
 
     bool state_changed = false;
 
@@ -84,4 +85,6 @@ class Ir
 
     error_t m_save_protocol(decode_type_t protocol);
     error_t m_read_protocol(decode_type_t *protocol);
+
+    int m_state_to_str(char *dest, stdAc::state_t state, uint_fast16_t max_len);
 };

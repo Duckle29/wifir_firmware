@@ -8,7 +8,7 @@ class Mrd{
   public:
         Mrd(FS * fs, const char * file_name, uint_fast32_t reset_time=10000);
         ~Mrd();
-        int begin();
+        int resets  ();
         int loop();
         int reset_counter();
 
@@ -18,5 +18,7 @@ class Mrd{
     File m_reset_counter_f;
     const char * m_filename;
     const uint_fast32_t m_reset_time;
+
+    int m_open_file();
 };
 

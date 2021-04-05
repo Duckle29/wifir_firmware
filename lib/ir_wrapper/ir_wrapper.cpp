@@ -55,6 +55,13 @@ error_t Ir::loop()
                       results_as_decoded_string().c_str());
 
             rx_results = m_results;
+            stdAc::state_t state;
+            stdAc::state_t prev = m_ir_ac->getStatePrev();
+
+            IRAcUtils::decodeToState(&m_results, &state, &prev);
+
+            m_state_to_str(state_str, state, sizeof(state_str));
+
             state_changed = true;
 
             // Blink the LED
@@ -143,6 +150,39 @@ void Ir::set_state(String state)
         }
         state.remove(0, idx + 1);
     }
+}
+
+/**
+ * @brief Write an AC state to an easily parseable string
+ *
+ * @param dest Buffer to write the string to. Should be ~100 bytes
+ * @param state The AC state to print
+ * @param max_len The size of the buffer
+ * @return int The snprintf return.
+ */
+int Ir::m_state_to_str(char * dest, stdAc::state_t state, uint_fast16_t max_len)
+{
+    return snprintf(dest, max_len,
+    "p=%d:m=%d:P=%d:M=%d:T=%.2f°%s:S=%d:V=%d:H=%d:Q=%d:t=%d:E=%d:L=%d:F=%d:C=%d:B=%d:s=%d:C=%d:",
+    state.protocol,
+    state.mode,
+    state.power,
+    state.mode,
+    state.degrees,
+    state.celsius ? "C" : "F",
+    state.fanspeed,
+    state.swingv,
+    state.swingh,
+    state.quiet,
+    state.turbo,
+    state.econo,
+    state.light,
+    state.filter,
+    state.clean,
+    state.beep,
+    state.sleep,
+    state.clock
+    );
 }
 
 String Ir::results_as_string()

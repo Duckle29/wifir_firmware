@@ -1,10 +1,12 @@
 #include "mrd.h"
 
 Mrd::Mrd(FS * fs, const char * file_name, uint_fast32_t reset_time)
-: m_reset_time(reset_time),
-  m_fs(fs),
-  m_filename(file_name)
-{}
+: m_fs(fs),
+  m_filename(file_name),
+  m_reset_time(reset_time)
+{
+    m_fs->begin();
+}
 
 Mrd::~Mrd()
 {
@@ -12,9 +14,23 @@ Mrd::~Mrd()
     m_fs->end();
 }
 
-int Mrd::begin()
+int Mrd::resets()
 {
-    m_fs->begin();
+    if (m_open_file() != 0)
+    {
+        return -1;
+    }
+    m_resets = m_reset_counter_f.parseInt() + 1;
+    m_reset_counter_f.truncate(0);
+    m_reset_counter_f.println(m_resets);
+
+    m_reset_counter_f.close();
+
+    return m_resets;
+}
+
+int Mrd::m_open_file()
+{
     if (!m_fs->exists(m_filename))
     {
         m_reset_counter_f = m_fs->open(m_filename, "w+");
@@ -29,26 +45,30 @@ int Mrd::begin()
         m_reset_counter_f.close();
         return -1;
     }
-
-    m_resets = m_reset_counter_f.parseInt() + 1;
-    m_reset_counter_f.truncate(0);
-    m_reset_counter_f.println(m_reset_counter_f);
-    return m_resets;
+    return 0;
 }
 
 
 
 int Mrd::loop()
 {
+    int cnt = 0;
     if(millis() >= m_reset_time && m_resets != 0)
     {
-        reset_counter();
+        cnt = reset_counter();
         m_resets = 0;
     }
+    return cnt;
 }
 
 int Mrd::reset_counter()
 {
+    if (m_open_file() != 0)
+    {
+        return -1;
+    }
     m_reset_counter_f.truncate(0);
     m_reset_counter_f.println(0);
+    m_reset_counter_f.close();
+    return m_resets;
 }

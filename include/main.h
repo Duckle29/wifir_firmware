@@ -26,7 +26,7 @@ Mrd mrd(&LittleFS, "reset_counter", mrd_timeout);
 // --- WiFi ---
 #include "wifi_wrapper.h"
 #include <ESP8266WiFi.h>
-WifiWrapper wm(led_pin);
+WifiWrapper wm(led_pin, true);
 
 // --- SSL ---
 #include "ssl_wrapper.h"
@@ -63,7 +63,7 @@ struct Feed feeds[] = {{"temp", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.t},
                        {"humi", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.rh},
                        {"eco2", PUBLISH, MQTT_QOS_0, UINT16, &Sens.eco2},
                        {"tvoc", PUBLISH, MQTT_QOS_0, UINT16, &Sens.tvoc},
-                       {"ir-state", PUBLISH, MQTT_QOS_1, IRRX, &ir.rx_results},
+                       {"ir-state", PUBLISH, MQTT_QOS_1, IRRX, ir.state_str},
                        {"log", PUBLISH, MQTT_QOS_0, BYTES, mqtt_log_buff},
                        {"set-state", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &state_rx_cb},
                        {"config", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &config_rx_cb}};

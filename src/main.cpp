@@ -17,13 +17,16 @@ void setup()
 
     // Reset detection
     bool clear_settings = false;
-    int resets = mrd.begin();
+    int resets = mrd.resets();
 
-    blink(LED_BUILTIN, resets, 500);
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                                "Resets: %d \n", resets);
+
+    blink(LED_BUILTIN, resets, 300);
 
     if (resets >= mrd_resets)
     {
-        blink(LED_BUILTIN, 10, 200);
+        blink(LED_BUILTIN, 10, 100);
         mrd.reset_counter();
         clear_settings = true;
         ir.reset_protocol();
@@ -32,7 +35,6 @@ void setup()
 
     // WiFi
     wm.begin(_hostname.c_str(), clear_settings);
-
     p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
                                 "Connected with IP: %s\n", WiFi.localIP().toString().c_str());
 
@@ -83,13 +85,20 @@ void setup()
 
     Sens.set_offset(temp_offset);
     Sens.begin();
-    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Exiting setup, device operational");
+    p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Exiting setup, device operational\n");
 }
 
 void loop()
 {
     Log.verbose(F("WM\n"));
-    mrd.loop();
+
+    int resets_were = mrd.loop();
+    if(resets_were)
+    {
+        p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                                "Reset counter cleared. Resets were %d\n", resets_were);
+    }
+
     ota->loop(); // Check for OTA first. Gives a chance to recover from crashing firmware on boot.
 
     Log.verbose(F("Sens\n"));
@@ -146,6 +155,16 @@ error_t mqtt_handle()
                     feeds[i].pub_obj->publish(*(float *)feeds[i].data);
                     break;
 
+                case IRRX:
+                    if (ir.state_changed)
+                    {
+                        ir.state_changed = false;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
                 case BYTES:
                     char *src_p;
                     char *src_end;
@@ -166,49 +185,12 @@ error_t mqtt_handle()
                             if (retries++ >= mqtt_max_retries)
                             {
                                 Log.error("[MQTT:PUB] Faild to send log\n");
-                                Log.error("[MQTT:LOG] src_p - src: %d\n", (uint64_t)(src_p - (char*)feeds[i].data));
                                 break;
                             }
                         }
                     }
                     p_mqtt_log_buff = mqtt_log_buff;
                     mqtt_log_buff[0] = '\0';
-                    break;
-
-                case IRRX:
-
-                    if (ir.state_changed)
-                    {
-                        decode_results res = *(decode_results *)feeds[i].data;
-
-                        stdAc::state_t state;
-                        stdAc::state_t prev;
-                        IRAcUtils::decodeToState(&res, &state, &prev);
-
-                        uint8_t dest_buff[mqtt_max_len];
-
-                        void *state_p = &state;
-
-                        uint64_t state_end = (uint64_t)state_p + sizeof(state);
-
-                        while ((uint64_t)state_p < state_end)
-                        {
-                            uint_fast16_t bytes =
-                                segment_data(dest_buff, state_p, mqtt_max_len, state_end - (uint64_t)state_p);
-                            state_p = (uint8_t *)state_p + bytes;
-
-                            uint_fast8_t retries = 0;
-                            while (!feeds[i].pub_obj->publish(dest_buff, bytes))
-                            {
-                                if (retries++ >= mqtt_max_retries)
-                                {
-                                    Log.error("[MQTT:PUB] Faild to send state\n");
-                                    break;
-                                }
-                            }
-                        }
-                        ir.state_changed = false;
-                    }
                     break;
 
                 case UINT16:
@@ -318,6 +300,7 @@ int segment_data(void *dest, const void *src, uint_fast32_t segment_length, uint
     memmove(dest, src, segment_length);
     return segment_length;
 }
+
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
