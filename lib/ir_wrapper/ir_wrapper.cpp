@@ -73,9 +73,8 @@ error_t Ir::loop()
     return I_SUCCESS;
 }
 
-void Ir::send_state()
+bool Ir::send_state()
 {
-
     if (m_ir_ac->hasStateChanged())
     {
         if (m_ir_ac->isProtocolSupported(m_ir_ac->next.protocol))
@@ -84,6 +83,7 @@ void Ir::send_state()
             m_ir_rx->disableIRIn(); // Disable IR in, or sending might keep triggering interrupts
             m_ir_ac->sendAc();
             m_ir_rx->enableIRIn();
+            return true;
         }
         else
         {
@@ -93,6 +93,7 @@ void Ir::send_state()
                 typeToString(m_ir_ac->next.protocol).c_str());
         }
     }
+    return false;
 }
 
 void Ir::set_state(char *state, uint_fast16_t len)

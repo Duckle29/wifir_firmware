@@ -63,7 +63,7 @@ class Ir
     void set_state(String state);
     void set_state(char *state, uint_fast16_t len);
 
-    void send_state();
+    bool send_state();
     error_t reset_protocol();
 
     String results_as_string(void);
