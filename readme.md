@@ -18,12 +18,12 @@ The IR receiver is to keep track of state if someone uses the remote on-location
 ## ToDo
 
 - ~~Set up all feeds using the written wrapper~~ Decided against using the wrapper, but kept the Feed struct
-- Add an MQTT based configuration feed.
+- ~~Add an MQTT based configuration feed.~~ Currently supports "ota" "reboot" and "caltemp:xx.x" to
+immediately check for OTA updates, reboot, and calibrate the temperature. Caltemp expeects the actual current temp, and calculates the offset from there. 
 - ~~Add callback for subscription type feeds~~ Done
 - ~~Add server based OTA~~ Implemented... Kinda(*) Meant to work with [ESP Update Server](http://kstobbe.dk/2019/03/20/web-server-for-esp32-and-esp8266-software-update-over-the-air/) ([git](https://github.com/kstobbe/esp-update-server))
 - ~~Fix janky double-reset detector code maybe? It always resets on firmware flash :(~~ Made my own simple "Multiple reset detector" implementation
-- ~~Implement MFLN support~~ Implemented. Will probe both servers and only if they support the same
-will it configure MFLN.
+- ~~Implement MFLN support~~ Implemented. Assumes 512B support for the OTA server (see [docs for nginx](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_buffer_size) and set it to 512) and sets RX buffers based on MQTTS MFLN results
 - ~~Add the ability to remotely read the debug/info messages.~~ Have an MQTT log feed now. 
 
 
