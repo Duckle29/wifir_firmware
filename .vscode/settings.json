@@ -35,6 +35,10 @@
         "initializer_list": "cpp",
         "numeric": "cpp",
         "sstream": "cpp",
-        "littlefs.h": "c"
+        "littlefs.h": "c",
+        "sensor_wrapper.h": "c",
+        "medianfilterlib.h": "c",
+        "tuple": "cpp",
+        "utility": "cpp"
     }
 }
