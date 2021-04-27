@@ -1,10 +1,17 @@
 #include "sensor_wrapper.h"
 
-Sensors::Sensors(uint32_t poll_interval)
+Sensors::Sensors(uint32_t poll_interval, float offset, int median_window)
 {
     m_polling_interval = poll_interval;
+    m_t_offset = offset;
+
     m_aht = new Adafruit_AHTX0();
     m_sgp = new Adafruit_SGP30();
+    
+    m_filt_temp = new MedianFilter<float>(median_window);
+    m_filt_humi = new MedianFilter<float>(median_window);
+    m_filt_eco2 = new MedianFilter<float>(median_window);
+    m_filt_tvoc = new MedianFilter<float>(median_window);
 }
 
 void Sensors::begin()
@@ -59,8 +66,20 @@ void Sensors::begin()
         break;
     }
 
+    float cal_t_offset;
+    if (m_read_calibration(&cal_t_offset) == I_SUCCESS)
+    {
+        m_t_offset = cal_t_offset;
+    }
+
     delay(50);
-    m_poll_temp_humi();
+
+    // Take 10 samples to start with
+    for (int i = 0; i<10; i++)
+    {
+        m_poll_temp_humi();
+        delay(100);
+    }
 
     m_sgp->setHumidity(m_get_absolute_humidity(t, rh));
 }
@@ -73,10 +92,21 @@ error_t Sensors::loop()
     return rc;
 }
 
-void Sensors::set_offset(float temp_offset)
+void Sensors::set_offset(double temp_offset)
 {
     m_t_offset = temp_offset;
+    error_t rc = m_save_calibration(m_t_offset);
+    if (rc != I_SUCCESS)
+    {
+        Log.error("[Sensors] %s", get_error_desc(rc));
+    }
 }
+
+double Sensors::get_offset()
+{
+    return m_t_offset;
+}
+
 
 /* return absolute humidity [mg/m^3] with approximation formula
 * @param temperature [°C]
@@ -90,26 +120,157 @@ uint32_t Sensors::m_get_absolute_humidity(float temperature, float humidity)
     return absoluteHumidityScaled;
 }
 
-error_t Sensors::m_sgp_read_baseline(uint16_t *eco2_base, uint16_t *tvoc_base)
+error_t Sensors::m_open_file(const char * filename, File * fp, const char * mode, bool override)
 {
-    if (!LittleFS.exists(F("sgp_baseline")))
+    if (LittleFS.exists(filename))
     {
-        return W_FILE_NOT_FOUND;
+        if(mode != "r" && mode != "r+" && !override)
+        {
+            return W_FILE_EXISTS;
+        }
+    }
+    else
+    {
+        if(mode == "r" || mode == "r+")
+        {
+            return W_FILE_NOT_FOUND;
+        }
     }
 
-    File baseline = LittleFS.open(F("sgp_baseline"), "r");
-    if (!baseline)
+    *fp = LittleFS.open(filename, mode);
+
+    if (!*fp)
     {
         return E_FILE_ACCESS;
     }
+    return I_SUCCESS;
+}
 
-    *eco2_base = baseline.parseInt();
-    *tvoc_base = baseline.parseInt();
-    baseline.close();
+error_t Sensors::m_value_from_file(const char * filename, uint16_t * values, size_t len)
+{
+    error_t rc = I_SUCCESS;
+    File f;
+    
+    rc = m_open_file(filename, &f, "r");
+
+    if (rc != I_SUCCESS)
+    {
+        return rc;
+    }
+
+    for(unsigned int i=0; i<len; i++)
+    {
+        *values++ = f.parseInt();
+    }
+    f.close();
+    return I_SUCCESS;
+}
+
+error_t Sensors::m_value_from_file(const char * filename, float * values, size_t len)
+{
+    error_t rc = I_SUCCESS;
+    File f;
+    
+    rc = m_open_file(filename, &f, "r");
+
+    if (rc != I_SUCCESS)
+    {
+        return rc;
+    }
+
+    for(unsigned int i=0; i<len; i++)
+    {
+        *values++ = f.parseFloat();
+    }
+    f.close();
+    return I_SUCCESS;
+}
+
+error_t Sensors::m_value_to_file(const char * filename, uint16_t * values, size_t len, bool override)
+{
+    error_t rc = I_SUCCESS;
+    File f;
+    
+    rc = m_open_file(filename, &f, "w", override);
+
+    if (rc != I_SUCCESS)
+    {
+        return rc;
+    }
+
+    for(unsigned int i=0; i<len; i++)
+    {
+        f.println(*values++);
+    }
+    f.close();
+    return I_SUCCESS;
+}
+
+error_t Sensors::m_value_to_file(const char * filename, float * values, size_t len, bool override)
+{
+    error_t rc = I_SUCCESS;
+    File f;
+    
+    rc = m_open_file(filename, &f, "w", override);
+
+    if (rc != I_SUCCESS)
+    {
+        return rc;
+    }
+
+    for(unsigned int i=0; i<len; i++)
+    {
+        f.println(*values++);
+    }
+    f.close();
+    return I_SUCCESS;
+}
+
+time_t Sensors::m_get_last_write(const char * filename)
+{
+    File f;
+    if(m_open_file(filename, &f, "r") != I_SUCCESS)
+    {
+        return 0;
+    }
+    
+    time_t last_write = f.getLastWrite();
+    f.close();
+    return last_write;
+}
+
+error_t Sensors::m_read_calibration(float * cal_t_offset)
+{
+    return m_value_from_file(calibration_filename, cal_t_offset);
+}
+
+error_t Sensors::m_save_calibration(float cal_t_offset)
+{
+    char buff[10];
+    snprintf(buff, sizeof(buff), "%.2f", cal_t_offset);
+    Log.trace("offset set to %s\n", buff);
+    return m_value_to_file(calibration_filename, &cal_t_offset, 1, true);
+}
+
+error_t Sensors::m_sgp_read_baseline(uint16_t *eco2_base, uint16_t *tvoc_base)
+{
+    error_t rc = I_SUCCESS;
+    uint16_t buff[2];
+    
+
+    rc = m_value_from_file(sgp_baseline_filename, buff, 2);
+
+    if (rc != I_SUCCESS)
+    {
+        return rc;
+    }
+
+    *eco2_base = buff[0];
+    *tvoc_base = buff[1];
 
     time_t now = time(nullptr);
     // Baseline with sensor off is valid for 7 days
-    if (now - baseline.getLastWrite() > (7 * 24 * 60 * 60))
+    if (now - m_get_last_write(sgp_baseline_filename) > (7 * 24 * 60 * 60))
     {
         return W_OLD_BASELINE;
     }
@@ -118,16 +279,9 @@ error_t Sensors::m_sgp_read_baseline(uint16_t *eco2_base, uint16_t *tvoc_base)
 
 error_t Sensors::m_sgp_save_baseline(uint16_t eco2_base, uint16_t tvoc_base)
 {
-    File baseline = LittleFS.open(F("sgp_baseline"), "w");
-    if (!baseline)
-    {
-        return E_FILE_ACCESS;
-    }
+    uint16_t buff[] = {eco2_base, tvoc_base};
 
-    baseline.println(eco2_base);
-    baseline.println(tvoc_base);
-    baseline.close();
-    return I_SUCCESS;
+    return m_value_to_file(sgp_baseline_filename, buff, sizeof(buff), true);
 }
 
 error_t Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
@@ -169,8 +323,10 @@ error_t Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
     {
         return E_SENSOR;
     }
-    *eco2 = m_sgp->eCO2;
-    *tvoc = m_sgp->TVOC;
+    m_filt_tvoc->AddValue(m_sgp->TVOC);
+    m_filt_eco2->AddValue(m_sgp->eCO2);
+    *tvoc = m_filt_tvoc->GetFiltered();
+    *eco2 = m_filt_eco2->GetFiltered();
     return rc;
 }
 
@@ -178,8 +334,12 @@ void Sensors::m_poll_temp_humi()
 {
     m_sens_temperature->getEvent(&m_temperature);
     m_sens_humidity->getEvent(&m_humidity);
-    t = m_temperature.temperature + m_t_offset;
-    rh = m_get_compensated_humidity(m_humidity.relative_humidity, m_temperature.temperature, m_t_offset);
+
+    m_filt_temp->AddValue(m_temperature.temperature);
+    m_filt_humi->AddValue(m_humidity.relative_humidity);
+
+    t = m_filt_temp->GetFiltered() + m_t_offset;
+    rh = m_get_compensated_humidity(m_filt_humi->GetFiltered() , m_filt_temp->GetFiltered(), m_t_offset);
 }
 
 // Thanks to help from aheid in home assistant DIY channel for pointing me in the right direction :)
