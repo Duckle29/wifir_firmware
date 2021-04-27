@@ -5,13 +5,11 @@ Mrd::Mrd(FS * fs, const char * file_name, uint_fast32_t reset_time)
   m_filename(file_name),
   m_reset_time(reset_time)
 {
-    m_fs->begin();
 }
 
 Mrd::~Mrd()
 {
-    m_reset_counter_f.close();
-    m_fs->end();
+    close();
 }
 
 int Mrd::resets()
@@ -48,7 +46,11 @@ int Mrd::m_open_file()
     return 0;
 }
 
-
+void Mrd::close()
+{
+    m_reset_counter_f.close();
+    closed = true;
+}
 
 int Mrd::loop()
 {
