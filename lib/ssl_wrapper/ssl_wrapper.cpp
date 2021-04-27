@@ -14,7 +14,6 @@ BearSSL::WiFiClientSecure *SSLWrapper::get_client()
 int SSLWrapper::begin(const char *tz)
 {
     m_set_clock(tz);
-    LittleFS.begin();
 
     int numCerts = m_certStore->initCertStore(LittleFS, PSTR("/certs.idx"), PSTR("/certs.ar"));
 
