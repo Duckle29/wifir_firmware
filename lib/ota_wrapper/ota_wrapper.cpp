@@ -14,7 +14,7 @@ OtaWrapper::OtaWrapper(BearSSL::WiFiClientSecure *client, const char *ota_server
     m_last_check -= check_interval;
 }
 
-void OtaWrapper::loop(bool check_now)
+bool OtaWrapper::loop(bool check_now)
 {
     if (millis() - m_last_check > m_check_interval || check_now)
     {
@@ -48,5 +48,7 @@ void OtaWrapper::loop(bool check_now)
             Log.notice("[OTA] Update successfull\n");
             break;
         }
+        return true;
     }
+    return false;
 }
