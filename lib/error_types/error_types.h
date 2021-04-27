@@ -3,6 +3,7 @@
 
 enum _error_codes
 {
+    W_FILE_EXISTS = 4,
     W_RATE_LIMIT = 3,
     W_OLD_BASELINE = 2,
     W_FILE_NOT_FOUND = 1,

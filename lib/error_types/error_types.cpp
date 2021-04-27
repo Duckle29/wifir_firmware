@@ -5,6 +5,7 @@ struct _errordesc errordesc[] = {
     {W_RATE_LIMIT, "Call has been rate limited"},
     {W_OLD_BASELINE, "Baseline is old"},
     {W_FILE_NOT_FOUND, "No such file"},
+    {W_FILE_EXISTS, "File already exists"},
     {I_SUCCESS, "No error"},
     {E_SENSOR, "Error getting reading from sensor"},
     {E_FILE_ACCESS, "Error accessing file"},
