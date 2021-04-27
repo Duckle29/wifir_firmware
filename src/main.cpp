@@ -2,6 +2,7 @@
 
 void setup()
 {
+    Log.trace("LITTLE_FS BEGIN: %s\n", LittleFS.begin() ? "true" : "false");
     _hostname = get_hostname(base_name);
 
     pinMode(LED_BUILTIN, OUTPUT);
@@ -11,6 +12,10 @@ void setup()
     Log.begin(LOG_LEVEL, &Serial);
     Log.notice("\nBOOT\n");
     Log.notice("%s version %s\n", base_name, fw_version);
+
+    Log.notice("Test: Blinking IR LEDs");
+    pinMode(ir_pins[1], OUTPUT);
+    blink(ir_pins[1], 10, 150);
 
     p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
                                 "BOOT: %s Version %s\n", base_name, fw_version);
@@ -41,17 +46,17 @@ void setup()
     // SSL
     ssl_wrap.begin(USER_TZ);
 
-    Log.notice("Testing MFLN server capabilites");
+    Log.notice("Testing MFLN server capabilites. OTA server is hard-coded to 512B, so only test MQTTS");
     uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
-    uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
+    //uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
     p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
-                                "MFLN support: OTA=%d, MQTTS=%d\n", ota_mfln, mqtts_mfln);
+                                "MFLN support: MQTTS=%d\n", mqtts_mfln);
 
-    Log.notice("MFLN support: MQTTS=%d | OTA=%d\n", mqtts_mfln, ota_mfln);
+    Log.notice("MFLN support: MQTTS=%d\n", mqtts_mfln);
 
-    if (mqtts_mfln == ota_mfln && mqtts_mfln != 0)
+    if (mqtts_mfln != 0)
     {
-        ssl_wrap.set_mfln(ota_mfln);
+        ssl_wrap.set_mfln(mqtts_mfln);
     }
 
     client = ssl_wrap.get_client();
@@ -83,7 +88,6 @@ void setup()
 
     MQTT_connect();
 
-    Sens.set_offset(temp_offset);
     Sens.begin();
     p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Exiting setup, device operational\n");
 }
@@ -92,35 +96,50 @@ void loop()
 {
     Log.verbose(F("WM\n"));
 
-    int resets_were = mrd.loop();
-    if(resets_were)
+    if (!mrd.closed)
     {
-        p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
-                                "Reset counter cleared. Resets were %d\n", resets_were);
+        int resets_were = mrd.loop();
+        if(resets_were)
+        {
+            p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                                    "Reset counter cleared. Resets were %d\n", resets_were);
+            mrd.close();
+        }
     }
 
-    ota->loop(); // Check for OTA first. Gives a chance to recover from crashing firmware on boot.
-
-    Log.verbose(F("Sens\n"));
-    error_t rc = Sens.loop();
-    if (rc != I_SUCCESS && rc != W_RATE_LIMIT)
+    error_t rc;
+    // Reading sensors right after ota seems to result in spikes
+    if (ota->loop())
     {
-        Log.error("%s\n", get_error_desc(rc));
+        sensor_hold_timestamp = millis();
+    }
+
+    if (millis() - sensor_hold_timestamp > sensor_hold_time)
+    {
+        Log.verbose(F("Sens\n"));
+        rc = Sens.loop();
+        if (rc != I_SUCCESS && rc != W_RATE_LIMIT)
+        {
+            Log.error("%s\n", get_error_desc(rc));
+        }
     }
 
     // Print sensor readings
     if (limiter_debug.ok())
     {
         char base_buff[35];
-        snprintf(base_buff, sizeof(base_buff), " baseline age: %.2f h |", (float)Sens.baseline_age / (float)(60 * 60));
-        Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb |%s\n", Sens.t, Sens.rh, Sens.eco2,
+        snprintf(base_buff, sizeof(base_buff), "baseline age: %.2f h |", (float)Sens.baseline_age / (float)(60 * 60));
+        Log.notice("Sensor readings: | %F°C | %F%% RH | eCO2: %d ppm | TVOC: %d ppb | %s\n", Sens.t, Sens.rh, Sens.eco2,
                    Sens.tvoc, base_buff);
     }
 
     Log.verbose(F("IR\n"));
     rc = ir.loop();
 
-    ir.send_state();
+    if(ir.send_state())
+    {
+        sensor_hold_timestamp = millis();
+    }
 
     Log.verbose(F("MQTT:PUB\n"));
     if (limiter_mqtt.ok(true))
@@ -147,6 +166,10 @@ error_t mqtt_handle()
         for (uint_fast8_t i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
         {
             delay(0);
+            if (feeds[i].warmup > millis())
+            {
+                continue;
+            }
             if (feeds[i].f_type == PUBLISH)
             {
                 switch (feeds[i].d_type)
@@ -166,6 +189,9 @@ error_t mqtt_handle()
                     }
 
                 case BYTES:
+                    // //Temp log of free heap
+                    // p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                    //             "Free heap: %d\n", ESP.getFreeHeap());
                     char *src_p;
                     char *src_end;
 
@@ -213,17 +239,31 @@ void state_rx_cb(char *data, uint16_t len)
 
 void config_rx_cb(char *data, uint16_t len)
 {
-    if (String(data) == "reboot")
+    String data_str = String(data);
+    data_str.toLowerCase();
+    if (data_str == "reboot")
     {
         p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Rebooting");
         mqtt_handle();
         ESP.restart();
     }
-    else if (String(data) == "ota")
+    else if (data_str == "ota")
     {
         p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Checking for update");
         mqtt_handle();
         ota->loop(true);
+    }
+    else if (data_str.startsWith("caltemp:"))
+    {
+        Log.trace("%s\n", data_str.c_str());
+        data_str.remove(0, 8);
+        Log.trace("%s\n", data_str.c_str());
+        double cal_temp = data_str.toDouble();
+        double new_offset = cal_temp - (Sens.t - Sens.get_offset());
+        Sens.set_offset(new_offset);
+        p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
+                                "Temp offset set to: %f °C\n", new_offset);
+        
     }
 }
 
@@ -343,3 +383,4 @@ void blink(uint_fast8_t led_pin, uint_fast8_t times, uint_fast16_t blink_delay)
         delay(blink_delay / (i % 2 + 1)); // Be off for half as long as on
     }
 }
+
