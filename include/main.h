@@ -35,7 +35,9 @@ BearSSL::WiFiClientSecure *client;
 
 // --- Sensors ---
 #include "sensor_wrapper.h"
-Sensors Sens;
+Sensors Sens(500, temp_offset, 5);
+const unsigned long sensor_hold_time = 60 * 1000;  // Time to disable sensing after particularly noisy events
+unsigned long sensor_hold_timestamp = 0;
 
 // --- IR ---
 #include "ir_wrapper.h"
@@ -59,12 +61,12 @@ Adafruit_MQTT_Client *mqtt;
 
 // Feeds
 #include <mqtt_structures.h>
-struct Feed feeds[] = {{"temp", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.t},
-                       {"humi", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.rh},
-                       {"eco2", PUBLISH, MQTT_QOS_0, UINT16, &Sens.eco2},
-                       {"tvoc", PUBLISH, MQTT_QOS_0, UINT16, &Sens.tvoc},
-                       {"ir-state", PUBLISH, MQTT_QOS_1, IRRX, ir.state_str},
-                       {"log", PUBLISH, MQTT_QOS_0, BYTES, mqtt_log_buff},
+struct Feed feeds[] = {{"temp", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.t, nullptr, warmup},
+                       {"humi", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.rh, nullptr, warmup},
+                       {"eco2", PUBLISH, MQTT_QOS_0, UINT16, &Sens.eco2, nullptr, warmup},
+                       {"tvoc", PUBLISH, MQTT_QOS_0, UINT16, &Sens.tvoc, nullptr, warmup},
+                       {"ir-state", PUBLISH, MQTT_QOS_1, IRRX, ir.state_str, nullptr, 0},
+                       {"log", PUBLISH, MQTT_QOS_0, BYTES, mqtt_log_buff, nullptr, 0},
                        {"set-state", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &state_rx_cb},
                        {"config", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &config_rx_cb}};
 

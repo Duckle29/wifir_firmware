@@ -30,6 +30,8 @@ struct Feed
     void *data;
     cb_p cb;
 
+    uint32_t warmup;
+
     union {
         Adafruit_MQTT_Publish *pub_obj;
         Adafruit_MQTT_Subscribe *sub_obj;
