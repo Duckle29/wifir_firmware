@@ -7,7 +7,7 @@
 #define USER_TZ TZ_Europe_Copenhagen
 
 // Warmup time
-const uint_fast32_t warmup = 0 * 60 * 1000;
+const uint_fast32_t warmup = 15 * 60 * 1000;
 
 // Debuggin
 #define LOG_LEVEL LOG_LEVEL_TRACE
@@ -17,7 +17,7 @@ const uint32_t debug_interval = 1000;
 
 // HostName
 const char *base_name = "WiFIR";
-const char *fw_version = "v0.2.0";
+const char *fw_version = "v0.2.1";
 
 // Multiple reset detection
 const int mrd_resets = 5;   // How many resets to do to cause a settings reset

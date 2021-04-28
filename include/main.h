@@ -35,8 +35,8 @@ BearSSL::WiFiClientSecure *client;
 
 // --- Sensors ---
 #include "sensor_wrapper.h"
-Sensors Sens(500, temp_offset, 5);
-const unsigned long sensor_hold_time = 60 * 1000;  // Time to disable sensing after particularly noisy events
+Sensors Sens(500, temp_offset, 7);
+const unsigned long sensor_hold_time = 3 * 60 * 1000;  // Time to disable sensing after particularly noisy events [ms]
 unsigned long sensor_hold_timestamp = 0;
 
 // --- IR ---
