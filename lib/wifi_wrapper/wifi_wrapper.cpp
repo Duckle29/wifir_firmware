@@ -28,7 +28,8 @@ error_t WifiWrapper::begin(const char *m_hostname, bool reset)
         m_reset_wifi(&m_wifiManager);
     }
 
-    m_wifiManager.autoConnect(m_hostname);
+    // 25 connection attempts, no password on fallback hotspot
+    m_wifiManager.autoConnect(m_hostname, NULL, 25);
 
     if (m_led_pin >= 0)
     {

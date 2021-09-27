@@ -13,7 +13,7 @@ void setup()
     Log.notice("\nBOOT\n");
     Log.notice("%s version %s\n", base_name, fw_version);
 
-    Log.notice("Test: Blinking IR LEDs");
+    Log.notice("Test: Blinking IR LEDs\n");
     pinMode(ir_pins[1], OUTPUT);
     blink(ir_pins[1], 10, 150);
 
@@ -46,7 +46,7 @@ void setup()
     // SSL
     ssl_wrap.begin(USER_TZ);
 
-    Log.notice("Testing MFLN server capabilites. OTA server is hard-coded to 512B, so only test MQTTS");
+    Log.notice("Testing MFLN server capabilites. OTA server is hard-coded to 512B, so only test MQTTS\n");
     uint16_t mqtts_mfln = ssl_wrap.test_mfln(mqtts_server, mqtts_port);
     //uint16_t ota_mfln = ssl_wrap.test_mfln(ota_server, 443);
     p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
