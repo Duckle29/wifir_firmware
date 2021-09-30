@@ -263,7 +263,10 @@ void config_rx_cb(char *data, uint16_t len)
         Sens.set_offset(new_offset);
         p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
                                 "Temp offset set to: %f °C\n", new_offset);
-        
+    }
+    else if (data_str == "get_sensors")
+    {
+        mqtt_handle();
     }
 }
 
