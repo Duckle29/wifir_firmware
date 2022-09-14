@@ -15,7 +15,7 @@ class WifiWrapper
 {
   public:
     WifiWrapper(uint8_t led_pin = -1, bool led_inverted = false);
-    error_t begin(const char *hostname, bool reset = false);
+    api_error_t  begin(const char *hostname, bool reset = false);
 
   private:
     const uint8_t m_led_pin;
@@ -23,5 +23,5 @@ class WifiWrapper
 
     AsyncWebServer *m_webServer;
     DNSServer *m_dnsServer;
-    error_t m_reset_wifi(AsyncWiFiManager *wm);
+    api_error_t  m_reset_wifi(AsyncWiFiManager *wm);
 };

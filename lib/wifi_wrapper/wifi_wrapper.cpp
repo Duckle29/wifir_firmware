@@ -8,7 +8,7 @@ WifiWrapper::WifiWrapper(uint8_t led_pin, bool led_inverted)
     m_dnsServer = new DNSServer();
 }
 
-error_t WifiWrapper::begin(const char *m_hostname, bool reset)
+api_error_t  WifiWrapper::begin(const char *m_hostname, bool reset)
 {
     if (m_led_pin >= 0)
     {
@@ -26,10 +26,13 @@ error_t WifiWrapper::begin(const char *m_hostname, bool reset)
     if (reset)
     {
         m_reset_wifi(&m_wifiManager);
+        m_wifiManager.autoConnect(m_hostname, NULL, 1);
     }
-
-    // 25 connection attempts, no password on fallback hotspot
-    m_wifiManager.autoConnect(m_hostname, NULL, 25);
+    else
+    {
+        // 25 connection attempts, no password on fallback hotspot
+        m_wifiManager.autoConnect(m_hostname, NULL, 25, 2000);
+    }
 
     if (m_led_pin >= 0)
     {
@@ -49,7 +52,7 @@ error_t WifiWrapper::begin(const char *m_hostname, bool reset)
     }
 }
 
-error_t WifiWrapper::m_reset_wifi(AsyncWiFiManager *wm)
+api_error_t  WifiWrapper::m_reset_wifi(AsyncWiFiManager *wm)
 {
     Log.notice(F("Clearning WiFi credentials\n"));
     wm->resetSettings();
