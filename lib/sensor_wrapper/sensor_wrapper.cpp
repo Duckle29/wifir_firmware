@@ -296,7 +296,7 @@ api_error_t  Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
     if (!old_baseline)
     {
         // If the baseline isn't old, save it every hour
-        if ((time(nullptr) - m_sgp_start) % (60 * 60))
+        if ((time(nullptr) - m_sgp_start) % (60 * 60) == 0)
         {
             uint16_t eco2_base, tvoc_base;
             if (m_sgp->getIAQBaseline(&eco2_base, &tvoc_base))
