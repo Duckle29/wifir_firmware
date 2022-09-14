@@ -19,7 +19,7 @@ Ir::Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN, bool LED_I
     m_ir_rx->enableIRIn();
 }
 
-error_t Ir::loop()
+api_error_t  Ir::loop()
 {
 
     // Other functions might deal with the LED differently. Ensure it's an output
@@ -196,7 +196,7 @@ String Ir::results_as_decoded_string()
     return IRAcUtils::resultAcToString(&rx_results);
 }
 
-error_t Ir::reset_protocol()
+api_error_t  Ir::reset_protocol()
 {
     File prot_f = LittleFS.open(F("IR_protocol"), "w");
     if (!prot_f)
@@ -208,7 +208,7 @@ error_t Ir::reset_protocol()
     return I_SUCCESS;
 }
 
-error_t Ir::m_save_protocol(decode_type_t protocol)
+api_error_t  Ir::m_save_protocol(decode_type_t protocol)
 {
     File prot_f = LittleFS.open(F("IR_protocol"), "w");
     if (!prot_f)
@@ -220,7 +220,7 @@ error_t Ir::m_save_protocol(decode_type_t protocol)
     return I_SUCCESS;
 }
 
-error_t Ir::m_read_protocol(decode_type_t * protocol)
+api_error_t  Ir::m_read_protocol(decode_type_t * protocol)
 {
     if (!LittleFS.exists(F("IR_protocol")))
     {

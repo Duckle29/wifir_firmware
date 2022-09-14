@@ -14,13 +14,13 @@ enum _error_codes
 };
 
 /* type to provide in your API */
-typedef enum _error_codes error_t;
+typedef enum _error_codes api_error_t ;
 
 /* use this to provide a perror style method to help consumers out */
 struct _errordesc
 {
-    error_t code;
+    api_error_t code;
     const char *message;
 };
 
-const char *get_error_desc(error_t);
+const char *get_error_desc(api_error_t );

@@ -47,7 +47,7 @@ void Sensors::begin()
     m_sgp_start = time(nullptr);
 
     uint16_t eco2_base, tvoc_base;
-    error_t rc = m_sgp_read_baseline(&eco2_base, &tvoc_base);
+    api_error_t  rc = m_sgp_read_baseline(&eco2_base, &tvoc_base);
     switch (rc)
     {
     case I_SUCCESS:
@@ -84,9 +84,9 @@ void Sensors::begin()
     m_sgp->setHumidity(m_get_absolute_humidity(t, rh));
 }
 
-error_t Sensors::loop()
+api_error_t  Sensors::loop()
 {
-    error_t rc = m_sgp_getter(&eco2, &tvoc);
+    api_error_t  rc = m_sgp_getter(&eco2, &tvoc);
     m_poll_temp_humi();
 
     return rc;
@@ -95,7 +95,7 @@ error_t Sensors::loop()
 void Sensors::set_offset(double temp_offset)
 {
     m_t_offset = temp_offset;
-    error_t rc = m_save_calibration(m_t_offset);
+    api_error_t  rc = m_save_calibration(m_t_offset);
     if (rc != I_SUCCESS)
     {
         Log.error("[Sensors] %s", get_error_desc(rc));
@@ -120,7 +120,7 @@ uint32_t Sensors::m_get_absolute_humidity(float temperature, float humidity)
     return absoluteHumidityScaled;
 }
 
-error_t Sensors::m_open_file(const char * filename, File * fp, const char * mode, bool override)
+api_error_t  Sensors::m_open_file(const char * filename, File * fp, const char * mode, bool override)
 {
     if (LittleFS.exists(filename))
     {
@@ -146,9 +146,9 @@ error_t Sensors::m_open_file(const char * filename, File * fp, const char * mode
     return I_SUCCESS;
 }
 
-error_t Sensors::m_value_from_file(const char * filename, uint16_t * values, size_t len)
+api_error_t  Sensors::m_value_from_file(const char * filename, uint16_t * values, size_t len)
 {
-    error_t rc = I_SUCCESS;
+    api_error_t  rc = I_SUCCESS;
     File f;
     
     rc = m_open_file(filename, &f, "r");
@@ -166,9 +166,9 @@ error_t Sensors::m_value_from_file(const char * filename, uint16_t * values, siz
     return I_SUCCESS;
 }
 
-error_t Sensors::m_value_from_file(const char * filename, float * values, size_t len)
+api_error_t  Sensors::m_value_from_file(const char * filename, float * values, size_t len)
 {
-    error_t rc = I_SUCCESS;
+    api_error_t  rc = I_SUCCESS;
     File f;
     
     rc = m_open_file(filename, &f, "r");
@@ -186,9 +186,9 @@ error_t Sensors::m_value_from_file(const char * filename, float * values, size_t
     return I_SUCCESS;
 }
 
-error_t Sensors::m_value_to_file(const char * filename, uint16_t * values, size_t len, bool override)
+api_error_t  Sensors::m_value_to_file(const char * filename, uint16_t * values, size_t len, bool override)
 {
-    error_t rc = I_SUCCESS;
+    api_error_t  rc = I_SUCCESS;
     File f;
     
     rc = m_open_file(filename, &f, "w", override);
@@ -206,9 +206,9 @@ error_t Sensors::m_value_to_file(const char * filename, uint16_t * values, size_
     return I_SUCCESS;
 }
 
-error_t Sensors::m_value_to_file(const char * filename, float * values, size_t len, bool override)
+api_error_t  Sensors::m_value_to_file(const char * filename, float * values, size_t len, bool override)
 {
-    error_t rc = I_SUCCESS;
+    api_error_t  rc = I_SUCCESS;
     File f;
     
     rc = m_open_file(filename, &f, "w", override);
@@ -239,12 +239,12 @@ time_t Sensors::m_get_last_write(const char * filename)
     return last_write;
 }
 
-error_t Sensors::m_read_calibration(float * cal_t_offset)
+api_error_t  Sensors::m_read_calibration(float * cal_t_offset)
 {
     return m_value_from_file(calibration_filename, cal_t_offset);
 }
 
-error_t Sensors::m_save_calibration(float cal_t_offset)
+api_error_t  Sensors::m_save_calibration(float cal_t_offset)
 {
     char buff[10];
     snprintf(buff, sizeof(buff), "%.2f", cal_t_offset);
@@ -252,9 +252,9 @@ error_t Sensors::m_save_calibration(float cal_t_offset)
     return m_value_to_file(calibration_filename, &cal_t_offset, 1, true);
 }
 
-error_t Sensors::m_sgp_read_baseline(uint16_t *eco2_base, uint16_t *tvoc_base)
+api_error_t  Sensors::m_sgp_read_baseline(uint16_t *eco2_base, uint16_t *tvoc_base)
 {
-    error_t rc = I_SUCCESS;
+    api_error_t  rc = I_SUCCESS;
     uint16_t buff[2];
     
 
@@ -277,14 +277,14 @@ error_t Sensors::m_sgp_read_baseline(uint16_t *eco2_base, uint16_t *tvoc_base)
     return I_SUCCESS;
 }
 
-error_t Sensors::m_sgp_save_baseline(uint16_t eco2_base, uint16_t tvoc_base)
+api_error_t  Sensors::m_sgp_save_baseline(uint16_t eco2_base, uint16_t tvoc_base)
 {
     uint16_t buff[] = {eco2_base, tvoc_base};
 
     return m_value_to_file(sgp_baseline_filename, buff, sizeof(buff), true);
 }
 
-error_t Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
+api_error_t  Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
 {
     if (millis() - m_last_poll < m_polling_interval)
     {
@@ -292,7 +292,7 @@ error_t Sensors::m_sgp_getter(uint16_t *eco2, uint16_t *tvoc)
     }
     m_last_poll = millis();
 
-    error_t rc = I_SUCCESS;
+    api_error_t  rc = I_SUCCESS;
     if (!old_baseline)
     {
         // If the baseline isn't old, save it every hour

@@ -11,7 +11,7 @@ struct _errordesc errordesc[] = {
     {E_FILE_ACCESS, "Error accessing file"},
     {E_CONNECTION_FAILURE, "Error establishing a connection"}};
 
-const char *get_error_desc(error_t err)
+const char *get_error_desc(api_error_t  err)
 {
     for (uint16_t i = 0; i < sizeof(errordesc) / sizeof(errordesc[0]); i++)
     {

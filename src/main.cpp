@@ -40,6 +40,7 @@ void setup()
 
     // WiFi
     wm.begin(_hostname.c_str(), clear_settings);
+    Log.info("clear %d\n", clear_settings);
     p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff),
                                 "Connected with IP: %s\n", WiFi.localIP().toString().c_str());
 
@@ -63,6 +64,8 @@ void setup()
 
     // OTA
     ota = new OtaWrapper(client, ota_server, ota_user, ota_passwd, base_name, fw_version, ota_check_interval);
+
+    ota->loop(true);
 
     // MQTTS
     mqtt = new Adafruit_MQTT_Client(client, mqtts_server, mqtts_port, mqtts_username, mqtts_key);
@@ -107,7 +110,7 @@ void loop()
         }
     }
 
-    error_t rc;
+    api_error_t  rc;
     // Reading sensors right after ota seems to result in spikes
     if (ota->loop())
     {
@@ -156,9 +159,9 @@ void loop()
     }
 }
 
-error_t mqtt_handle()
+api_error_t  mqtt_handle()
 {
-    error_t last_return_code = I_SUCCESS;
+    api_error_t  last_return_code = I_SUCCESS;
     {
         MQTT_connect();
         Log.notice("MQTT publish\n");
@@ -266,6 +269,7 @@ void config_rx_cb(char *data, uint16_t len)
     }
     else if (data_str == "get_sensors")
     {
+        p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Sensors requested");
         mqtt_handle();
     }
 }
@@ -369,6 +373,7 @@ void MQTT_connect()
         retries--;
         if (retries == 0)
         {
+            mrd.reset_counter();
             // basically die and wait for WDT to reset me
             while (1)
                 ;

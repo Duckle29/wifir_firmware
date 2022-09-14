@@ -52,7 +52,7 @@ const uint_fast8_t mqtt_max_retries = 3;
 
 RateLimiter limiter_mqtt(mqtt_interval);
 RateLimiter limiter_mqtt_ping(mqtt_keepalive - 60 * 1000);
-error_t mqtt_handle();
+api_error_t mqtt_handle();
 
 // Client
 void MQTT_connect();
@@ -68,7 +68,7 @@ struct Feed feeds[] = {{"temp", PUBLISH, MQTT_QOS_0, FLOAT, &Sens.t, nullptr, wa
                        {"ir-state", PUBLISH, MQTT_QOS_1, IRRX, ir.state_str, nullptr, 0},
                        {"log", PUBLISH, MQTT_QOS_0, BYTES, mqtt_log_buff, nullptr, 0},
                        {"set-state", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &state_rx_cb},
-                       {"config", SUBSCRIBE, MQTT_QOS_1, CB, nullptr, &config_rx_cb}};
+                       {"config", SUBSCRIBE, MQTT_QOS_0, CB, nullptr, &config_rx_cb}};
 
 // --- OTA ---
 #include "ota_wrapper.h"

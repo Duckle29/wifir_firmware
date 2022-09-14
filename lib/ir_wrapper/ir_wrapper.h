@@ -23,7 +23,7 @@ class Ir
 
     bool state_changed = false;
 
-    error_t loop();
+    api_error_t  loop();
 
     /**
      * @param[in] state A String with the desired changes to the state.
@@ -64,7 +64,7 @@ class Ir
     void set_state(char *state, uint_fast16_t len);
 
     bool send_state();
-    error_t reset_protocol();
+    api_error_t  reset_protocol();
 
     String results_as_string(void);
     String results_as_decoded_string(void);
@@ -83,8 +83,8 @@ class Ir
     IRrecv *m_ir_rx;
     IRac *m_ir_ac;
 
-    error_t m_save_protocol(decode_type_t protocol);
-    error_t m_read_protocol(decode_type_t *protocol);
+    api_error_t  m_save_protocol(decode_type_t protocol);
+    api_error_t  m_read_protocol(decode_type_t *protocol);
 
     int m_state_to_str(char *dest, stdAc::state_t state, uint_fast16_t max_len);
 };
