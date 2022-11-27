@@ -52,7 +52,7 @@ const uint_fast8_t mqtt_max_retries = 3;
 
 RateLimiter limiter_mqtt(mqtt_interval);
 RateLimiter limiter_mqtt_ping(mqtt_keepalive - 60 * 1000);
-api_error_t mqtt_handle();
+api_error_t mqtt_handle(bool ignore_warmup = false);
 
 // Client
 void MQTT_connect();

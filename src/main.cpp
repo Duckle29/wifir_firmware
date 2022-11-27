@@ -159,7 +159,7 @@ void loop()
     }
 }
 
-api_error_t  mqtt_handle()
+api_error_t  mqtt_handle(bool ignore_warmup)
 {
     api_error_t  last_return_code = I_SUCCESS;
     {
@@ -169,7 +169,7 @@ api_error_t  mqtt_handle()
         for (uint_fast8_t i = 0; i < sizeof(feeds) / sizeof(feeds[0]); i++)
         {
             delay(0);
-            if (feeds[i].warmup > millis())
+            if (feeds[i].warmup > millis() && !ignore_warmup)
             {
                 continue;
             }
@@ -270,7 +270,7 @@ void config_rx_cb(char *data, uint16_t len)
     else if (data_str == "get_sensors")
     {
         p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Sensors requested");
-        mqtt_handle();
+        mqtt_handle(true);
     }
 }
 

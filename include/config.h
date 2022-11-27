@@ -17,7 +17,7 @@ const uint32_t debug_interval = 1000;
 
 // HostName
 const char *base_name = "WiFIR";
-const char *fw_version = "v0.2.11";
+const char *fw_version = "v0.2.12";
 
 // Multiple reset detection
 const int mrd_resets = 5;   // How many resets to do to cause a settings reset
