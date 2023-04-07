@@ -24,6 +24,7 @@ class Ir
     bool state_changed = false;
 
     api_error_t  loop();
+    api_error_t begin();
 
     /**
      * @param[in] state A String with the desired changes to the state.
@@ -63,7 +64,7 @@ class Ir
     void set_state(String state);
     void set_state(char *state, uint_fast16_t len);
 
-    bool send_state();
+    bool send_state(bool force=false);
     api_error_t  reset_protocol();
 
     String results_as_string(void);

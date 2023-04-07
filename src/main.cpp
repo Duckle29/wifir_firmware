@@ -92,6 +92,10 @@ void setup()
     MQTT_connect();
 
     Sens.begin();
+
+    // IR
+    ir.begin();
+
     p_mqtt_log_buff += snprintf(p_mqtt_log_buff, sizeof(mqtt_log_buff) - (p_mqtt_log_buff - mqtt_log_buff), "Exiting setup, device operational\n");
 }
 
@@ -238,6 +242,7 @@ void state_rx_cb(char *data, uint16_t len)
 {
     // Log.trace("%s\n", data);
     ir.set_state(data, len);
+    ir.send_state(true); // Force send a state change
 }
 
 void config_rx_cb(char *data, uint16_t len)

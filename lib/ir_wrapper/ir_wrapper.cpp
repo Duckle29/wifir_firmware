@@ -7,16 +7,21 @@ Ir::Ir(uint_fast8_t RX_PIN, uint_fast8_t TX_PIN, int_fast8_t LED_PIN, bool LED_I
 
     m_ir_rx = new IRrecv(RX_PIN, m_rx_buffer_size, m_ir_timeout, false);
     m_ir_ac = new IRac(TX_PIN);
+}
 
+api_error_t Ir::begin()
+{
     decode_type_t protocol;
-    if (m_read_protocol(&protocol) == I_SUCCESS && protocol != UNUSED && protocol != UNKNOWN)
+    api_error_t response = m_read_protocol(&protocol);
+    if (response == I_SUCCESS && protocol != UNUSED && protocol != UNKNOWN)
     {
         m_ir_ac->next.protocol = protocol;
         m_ir_ac->markAsSent();
     }
 
-
     m_ir_rx->enableIRIn();
+
+    return response;
 }
 
 api_error_t  Ir::loop()
@@ -73,9 +78,9 @@ api_error_t  Ir::loop()
     return I_SUCCESS;
 }
 
-bool Ir::send_state()
+bool Ir::send_state(bool force)
 {
-    if (m_ir_ac->hasStateChanged())
+    if (m_ir_ac->hasStateChanged() || force)
     {
         if (m_ir_ac->isProtocolSupported(m_ir_ac->next.protocol))
         {
@@ -213,8 +218,11 @@ api_error_t  Ir::m_save_protocol(decode_type_t protocol)
     File prot_f = LittleFS.open(F("IR_protocol"), "w");
     if (!prot_f)
     {
+        Log.trace("Couldn't open IR prot file");
         return E_FILE_ACCESS;
     }
+
+    Log.trace("Save Prot: %d\n", (long)protocol);
 
     prot_f.println((long)protocol);
     return I_SUCCESS;
@@ -224,15 +232,20 @@ api_error_t  Ir::m_read_protocol(decode_type_t * protocol)
 {
     if (!LittleFS.exists(F("IR_protocol")))
     {
+        Log.trace("No saved IR protocol");
         return W_FILE_NOT_FOUND;
     }
 
     File prot_f = LittleFS.open(F("IR_protocol"), "r");
     if (!prot_f)
     {
+        Log.trace("Couldn't open IR prot file");
         return E_FILE_ACCESS;
     }
 
-    *protocol = (decode_type_t)prot_f.parseInt();
+    int prot = prot_f.parseInt();
+    Log.trace("Read Prot: %d\n", prot);
+
+    *protocol = (decode_type_t)prot;
     return I_SUCCESS;
 }
