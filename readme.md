@@ -1,4 +1,5 @@
 # WiFIR firmware
+[web app for controlling it](https://github.com/Duckle29/wifir_pwa)
 
 This is the firmware for my [WiFIR](https://git.io/WiFIR) hardware. It: 
 
